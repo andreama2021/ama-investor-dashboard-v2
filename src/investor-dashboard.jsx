@@ -6,17 +6,9 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 // CONFIGURATION - UPDATE THESE VALUES
 // ============================================
 const CONFIG = {
-  // Get your API key from: https://console.cloud.google.com/apis/credentials
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
-  
-  // Your Google Sheet ID (found in the URL)
-  // Example: https://docs.google.com/spreadsheets/d/SHEET_ID_HERE/edit
-  SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
-  
-  // The range in your sheet (e.g., 'Sheet1!A1:O100')
+  SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn200nK6mbnYB3vulS9wWJkEs',
   SHEET_RANGE: 'Sheet1!A1:O1000',
-  
-  // PIN code for access (change this!)
   ACCESS_PIN: '2026'
 };
 
