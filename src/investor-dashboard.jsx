@@ -5,6 +5,7 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 // ============================================
 // CONFIGURATION - UPDATE THESE VALUES
 // ============================================
+//v2
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn200nK6mbnYB3vulS9wWJkEs',
