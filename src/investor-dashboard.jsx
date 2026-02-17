@@ -8,7 +8,7 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 //v2
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
-  SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn200nK6mbnYB3vulS9wWJkEs',
+  SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
   SHEET_RANGE: 'Sheet1!A1:O1000',
   ACCESS_PIN: '2026'
 };
