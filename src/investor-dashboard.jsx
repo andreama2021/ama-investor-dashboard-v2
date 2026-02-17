@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target } from 'lucide-react';
-
+ 
 // ============================================
 // CONFIGURATION - UPDATE THESE VALUES
 // ============================================
