@@ -11,7 +11,7 @@ const CONFIG = {
   
   // Your Google Sheet ID (found in the URL)
   // Example: https://docs.google.com/spreadsheets/d/SHEET_ID_HERE/edit
-  SPREADSHEET_ID: https://docs.google.com/spreadsheets/d/10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs/edit?gid=291917942#gid=291917942,
+  SPREADSHEET_ID: 10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs,
   
   // The range in your sheet (e.g., 'Sheet1!A1:O100')
   SHEET_RANGE: 'Sheet1!A1:O1000',
