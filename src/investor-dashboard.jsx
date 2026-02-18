@@ -176,10 +176,10 @@ export default function InvestorDashboard() {
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
     
     // Calculate runway (months)
-    const avgMonthlyBurn = totalMarketingSpend / current.length;
-    const avgMonthlyRevenue = totalRevenue / current.length;
-    const netBurn = avgMonthlyBurn - avgMonthlyRevenue;
-    const runway = netBurn > 0 ? currentCash / netBurn : 999;
+const avgMonthlyRevenue = totalRevenue / current.length;
+const avgMonthlyMarketing = totalMarketingSpend / current.length;
+const netBurn = avgMonthlyMarketing - avgMonthlyRevenue;
+const runway = netBurn > 0 ? currentCash / netBurn : 999;
     
     // Previous period metrics
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
@@ -387,7 +387,7 @@ export default function InvestorDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
                   title="Total GMV"
-                  value={`€${(metrics.totalGMV / 1000).toFixed(0)}k`}
+                  value={`$${metrics.totalGMV.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   growth={metrics.growth.gmv}
                   icon={<DollarSign className="w-6 h-6" />}
                   color="blue"
@@ -395,7 +395,7 @@ export default function InvestorDashboard() {
                 
                 <KPICard
                   title="Total Revenue"
-                  value={`€${(metrics.totalRevenue / 1000).toFixed(0)}k`}
+                  value={`$${metrics.totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   growth={metrics.growth.revenue}
                   icon={<DollarSign className="w-6 h-6" />}
                   color="green"
@@ -403,7 +403,7 @@ export default function InvestorDashboard() {
                 
                 <KPICard
                   title="TTM Revenue"
-                  value={`€${(metrics.latestTTM / 1000).toFixed(0)}k`}
+                  value={`$${metrics.latestTTM.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   growth={null}
                   icon={<TrendingUp className="w-6 h-6" />}
                   color="purple"
@@ -411,7 +411,7 @@ export default function InvestorDashboard() {
                 
                 <KPICard
                   title="Avg Booking Value"
-                  value={`€${metrics.avgBookingValue.toFixed(0)}`}
+                  value={`$${metrics.avgBookingValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   growth={metrics.growth.avgBookingValue}
                   icon={<Target className="w-6 h-6" />}
                   color="indigo"
@@ -463,7 +463,7 @@ export default function InvestorDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
                   title="Marketing Spend"
-                  value={`€${(metrics.totalMarketingSpend / 1000).toFixed(0)}k`}
+                  value={`$${metrics.totalMarketingSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   growth={null}
                   icon={<Target className="w-6 h-6" />}
                   color="red"
@@ -480,7 +480,7 @@ export default function InvestorDashboard() {
                 
                 <KPICard
                   title="Cash Position"
-                  value={`€${(metrics.currentCash / 1000).toFixed(0)}k`}
+                  value={`$${metrics.currentCash.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   growth={null}
                   icon={<DollarSign className="w-6 h-6" />}
                   color="indigo"
@@ -515,7 +515,7 @@ export default function InvestorDashboard() {
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `€${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
                     />
                     <Area type="monotone" dataKey="gmvTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorGMV)" strokeWidth={2} />
                   </AreaChart>
@@ -538,7 +538,7 @@ export default function InvestorDashboard() {
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `€${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
                     />
                     <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
                   </AreaChart>
@@ -580,7 +580,7 @@ export default function InvestorDashboard() {
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `€${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
                     />
                     <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} />
                   </AreaChart>
@@ -597,7 +597,7 @@ export default function InvestorDashboard() {
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `€${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
                     />
                     <Legend />
                     <Bar dataKey="marketingSpend" fill="#ef4444" radius={[8, 8, 0, 0]} name="Marketing Spend" />
