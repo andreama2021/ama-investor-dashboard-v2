@@ -143,14 +143,38 @@ export default function InvestorDashboard() {
   }
   
   const current = data.filter(item => {
-    const itemDate = new Date(item.date);
-    return itemDate >= startDate && itemDate <= endDate;
-  });
+  const itemDate = new Date(item.date);
+  const itemYear = itemDate.getFullYear();
+  const itemMonth = itemDate.getMonth();
+  const startYear = startDate.getFullYear();
+  const startMonth = startDate.getMonth();
+  const endYear = endDate.getFullYear();
+  const endMonth = endDate.getMonth();
   
-  const previous = data.filter(item => {
-    const itemDate = new Date(item.date);
-    return itemDate >= prevStartDate && itemDate < prevEndDate;
-  });
+  // For lastMonth, only match the specific month
+  if (period === 'lastMonth') {
+    return itemYear === startYear && itemMonth === startMonth;
+  }
+  
+  return itemDate >= startDate && itemDate <= endDate;
+});
+
+const previous = data.filter(item => {
+  const itemDate = new Date(item.date);
+  const itemYear = itemDate.getFullYear();
+  const itemMonth = itemDate.getMonth();
+  const prevStartYear = prevStartDate.getFullYear();
+  const prevStartMonth = prevStartDate.getMonth();
+  const prevEndYear = prevEndDate.getFullYear();
+  const prevEndMonth = prevEndDate.getMonth();
+  
+  // For lastMonth, only match the specific month
+  if (period === 'lastMonth') {
+    return itemYear === prevStartYear && itemMonth === prevStartMonth;
+  }
+  
+  return itemDate >= prevStartDate && itemDate < prevEndDate;
+});
   
   return { current, previous };
 };
