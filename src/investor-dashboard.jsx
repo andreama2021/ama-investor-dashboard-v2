@@ -115,18 +115,19 @@ export default function InvestorDashboard() {
     let startDate, endDate, prevStartDate, prevEndDate;
     
     if (period === 'custom' && customStartDate && customEndDate) {
-      startDate = new Date(customStartDate);
-      endDate = new Date(customEndDate);
-      const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
-      prevEndDate = new Date(startDate);
-      prevStartDate = new Date(prevEndDate.getTime() - daysDiff * 24 * 60 * 60 * 1000);
-    } else {
-      const days = parseInt(period);
-      endDate = now;
-      startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      prevEndDate = new Date(startDate);
-      prevStartDate = new Date(prevEndDate.getTime() - days * 24 * 60 * 60 * 1000);
-    }
+  startDate = new Date(customStartDate);
+  endDate = new Date(customEndDate);
+  // Compare to same period last year
+  prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+  prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+} else {
+  const days = parseInt(period);
+  endDate = now;
+  startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+  // Compare to same period last year
+  prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+  prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+}
     
     const current = data.filter(item => {
       const itemDate = new Date(item.date);
@@ -664,8 +665,8 @@ function KPICard({ title, value, growth, icon, color, invertGrowth = false, subt
       <h3 className="text-slate-600 text-sm font-medium mb-1">{title}</h3>
       <p className="text-3xl font-bold text-slate-900">{value}</p>
       {showGrowth && (
-        <p className="text-xs text-slate-500 mt-2">vs previous period</p>
-      )}
+  <p className="text-xs text-slate-500 mt-2">vs same period last year</p>
+)}
       {subtitle && !showGrowth && (
         <p className="text-xs text-slate-500 mt-2">{subtitle}</p>
       )}
