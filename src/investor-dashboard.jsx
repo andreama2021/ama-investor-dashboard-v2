@@ -318,43 +318,47 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
           </div>
           
           <div className="flex flex-wrap gap-3">
-            
-              Last 30 Days
-            <button
-  onClick={() => setPeriod('lastMonth')}
-  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-    period === 'lastMonth' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-  }`}
->
-  Last Full Month
-</button>
-              Last Quarter
-            </button>
-            <button
-              onClick={() => setPeriod('180')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                period === '180' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Last 6 Months
-            </button>
-            <button
-              onClick={() => setPeriod('365')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                period === '365' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Last Year
-            </button>
-            <button
-              onClick={() => setPeriod('custom')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                period === 'custom' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              Custom Range
-            </button>
-          </div>
+  <button
+    onClick={() => setPeriod('lastMonth')}
+    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+      period === 'lastMonth' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+    }`}
+  >
+    Last Full Month
+  </button>
+  <button
+    onClick={() => setPeriod('90')}
+    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+      period === '90' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+    }`}
+  >
+    Last Quarter
+  </button>
+  <button
+    onClick={() => setPeriod('180')}
+    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+      period === '180' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+    }`}
+  >
+    Last 6 Months
+  </button>
+  <button
+    onClick={() => setPeriod('365')}
+    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+      period === '365' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+    }`}
+  >
+    Last Year
+  </button>
+  <button
+    onClick={() => setPeriod('custom')}
+    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+      period === 'custom' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+    }`}
+  >
+    Custom Range
+  </button>
+</div>
           
           {period === 'custom' && (
             <div className="flex gap-4 mt-4">
