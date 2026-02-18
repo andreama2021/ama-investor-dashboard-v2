@@ -353,7 +353,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
   <button
     onClick={() => setPeriod('90')}
     className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-      period === '90' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+      period === '90' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
     }`}
   >
     Last Quarter
