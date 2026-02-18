@@ -318,12 +318,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
           </div>
           
           <div className="flex flex-wrap gap-3">
-            <button
-              onClick={() => setPeriod('30')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                period === '30' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
+            
               Last 30 Days
             <button
   onClick={() => setPeriod('lastMonth')}
