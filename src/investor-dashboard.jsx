@@ -23,7 +23,7 @@ export default function InvestorDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [period, setPeriod] = useState('90');
+  const [period, setPeriod] = useState('lastMonth');
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
@@ -109,38 +109,51 @@ export default function InvestorDashboard() {
   };
 
   const getFilteredData = () => {
-    if (!data) return { current: [], previous: [] };
+  if (!data) return { current: [], previous: [] };
+  
+  const now = new Date();
+  let startDate, endDate, prevStartDate, prevEndDate;
+  
+  if (period === 'lastMonth') {
+    // Get the last complete month
+    const today = new Date();
+    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
     
-    const now = new Date();
-    let startDate, endDate, prevStartDate, prevEndDate;
+    // Last complete month
+    endDate = new Date(firstDayThisMonth.getTime() - 1); // Last day of previous month
+    startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1); // First day of that month
     
-    if (period === 'custom' && customStartDate && customEndDate) {
-  startDate = new Date(customStartDate);
-  endDate = new Date(customEndDate);
-  // Compare to same period last year
-  prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
-  prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
-} else {
-  const days = parseInt(period);
-  endDate = now;
-  startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-  // Compare to same period last year
-  prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
-  prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
-}
+    // Same month last year
+    prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), 1);
+    prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth() + 1, 0); // Last day of that month
     
-    const current = data.filter(item => {
-      const itemDate = new Date(item.date);
-      return itemDate >= startDate && itemDate <= endDate;
-    });
-    
-    const previous = data.filter(item => {
-      const itemDate = new Date(item.date);
-      return itemDate >= prevStartDate && itemDate < prevEndDate;
-    });
-    
-    return { current, previous };
-  };
+  } else if (period === 'custom' && customStartDate && customEndDate) {
+    startDate = new Date(customStartDate);
+    endDate = new Date(customEndDate);
+    // Compare to same period last year
+    prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+    prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+  } else {
+    const days = parseInt(period);
+    endDate = now;
+    startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+    // Compare to same period last year
+    prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+    prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+  }
+  
+  const current = data.filter(item => {
+    const itemDate = new Date(item.date);
+    return itemDate >= startDate && itemDate <= endDate;
+  });
+  
+  const previous = data.filter(item => {
+    const itemDate = new Date(item.date);
+    return itemDate >= prevStartDate && itemDate < prevEndDate;
+  });
+  
+  return { current, previous };
+};
 
   const calculateMetrics = () => {
     const { current, previous } = getFilteredData();
@@ -312,13 +325,14 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
               }`}
             >
               Last 30 Days
-            </button>
             <button
-              onClick={() => setPeriod('90')}
-              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                period === '90' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
+  onClick={() => setPeriod('lastMonth')}
+  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+    period === 'lastMonth' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+  }`}
+>
+  Last Full Month
+</button>
               Last Quarter
             </button>
             <button
