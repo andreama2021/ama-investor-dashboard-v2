@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target, Home } from 'lucide-react';
  
 // ============================================
 // CONFIGURATION - UPDATE THESE VALUES
@@ -8,7 +8,7 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
-  SHEET_RANGE: 'Sheet1!A1:O1000',
+  SHEET_RANGE: 'Sheet1!A1:R1000',
   ACCESS_PIN: '2026'
 };
 
@@ -100,7 +100,10 @@ export default function InvestorDashboard() {
       nps: parseFloat(row[11]) || 0,
       marketingSpend: parseFloat(row[12]) || 0,
       cashPosition: parseFloat(row[13]) || 0,
-      ttmRevenue: parseFloat(row[14]) || 0
+      ttmRevenue: parseFloat(row[14]) || 0,
+      gmvEU: parseFloat(row[15]) || 0,
+      gmvOutsideEU: parseFloat(row[16]) || 0,
+      properties: parseInt(row[17]) || 0
     })).filter(item => item.date);
   };
 
@@ -118,7 +121,6 @@ export default function InvestorDashboard() {
         endDate = new Date(firstDayThisMonth.getTime() - 1);
         startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
       } else {
-        // December of selected year
         startDate = new Date(selectedYear, 11, 1);
         endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
       }
@@ -179,24 +181,6 @@ export default function InvestorDashboard() {
       return itemDate >= prevStartDate && itemDate <= prevEndDate;
     });
     
-    // Debug logging
-    console.log('Filter Debug:', {
-      period,
-      selectedYear,
-      currentRange: { 
-        start: startDate.toISOString().split('T')[0], 
-        end: endDate.toISOString().split('T')[0] 
-      },
-      previousRange: { 
-        start: prevStartDate.toISOString().split('T')[0], 
-        end: prevEndDate.toISOString().split('T')[0] 
-      },
-      currentCount: current.length,
-      previousCount: previous.length,
-      currentDates: current.map(d => d.date),
-      previousDates: previous.map(d => d.date)
-    });
-    
     return { current, previous };
   };
 
@@ -217,6 +201,9 @@ export default function InvestorDashboard() {
         currentCash: 0,
         latestTTM: 0,
         runway: 0,
+        totalGmvEU: 0,
+        totalGmvOutsideEU: 0,
+        avgProperties: 0,
         growth: {}
       };
     }
@@ -232,6 +219,9 @@ export default function InvestorDashboard() {
     const marketingEfficiency = totalMarketingSpend > 0 ? (totalRevenue / totalMarketingSpend) * 100 : 0;
     const currentCash = current[current.length - 1]?.cashPosition || 0;
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
+    const totalGmvEU = current.reduce((sum, item) => sum + item.gmvEU, 0);
+    const totalGmvOutsideEU = current.reduce((sum, item) => sum + item.gmvOutsideEU, 0);
+    const avgProperties = current.reduce((sum, item) => sum + item.properties, 0) / current.length;
     
     const avgMonthlyRevenue = totalRevenue / current.length;
     const avgMonthlyMarketing = totalMarketingSpend / current.length;
@@ -247,6 +237,9 @@ export default function InvestorDashboard() {
     const prevAvgNPS = previous.length > 0 ? previous.reduce((sum, item) => sum + item.nps, 0) / previous.length : 0;
     const prevTotalMarketingSpend = previous.reduce((sum, item) => sum + item.marketingSpend, 0);
     const prevMarketingEfficiency = prevTotalMarketingSpend > 0 ? (prevTotalRevenue / prevTotalMarketingSpend) * 100 : 0;
+    const prevTotalGmvEU = previous.reduce((sum, item) => sum + item.gmvEU, 0);
+    const prevTotalGmvOutsideEU = previous.reduce((sum, item) => sum + item.gmvOutsideEU, 0);
+    const prevAvgProperties = previous.length > 0 ? previous.reduce((sum, item) => sum + item.properties, 0) / previous.length : 0;
     
     const calculateGrowth = (current, previous) => {
       if (previous === 0) return current > 0 ? 100 : 0;
@@ -266,6 +259,9 @@ export default function InvestorDashboard() {
       currentCash,
       latestTTM,
       runway,
+      totalGmvEU,
+      totalGmvOutsideEU,
+      avgProperties,
       growth: {
         gmv: calculateGrowth(totalGMV, prevTotalGMV),
         revenue: calculateGrowth(totalRevenue, prevTotalRevenue),
@@ -274,7 +270,10 @@ export default function InvestorDashboard() {
         avgBookingValue: calculateGrowth(avgBookingValue, prevAvgBookingValue),
         users: calculateGrowth(currentUsers, prevUsers),
         nps: calculateGrowth(avgNPS, prevAvgNPS),
-        marketingEfficiency: calculateGrowth(marketingEfficiency, prevMarketingEfficiency)
+        marketingEfficiency: calculateGrowth(marketingEfficiency, prevMarketingEfficiency),
+        gmvEU: calculateGrowth(totalGmvEU, prevTotalGmvEU),
+        gmvOutsideEU: calculateGrowth(totalGmvOutsideEU, prevTotalGmvOutsideEU),
+        properties: calculateGrowth(avgProperties, prevAvgProperties)
       }
     };
   };
@@ -366,6 +365,14 @@ export default function InvestorDashboard() {
           <div className="mb-3">
             <p className="text-sm text-slate-600 mb-2">Select Year</p>
             <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setSelectedYear(2023)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2023 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2023
+              </button>
               <button
                 onClick={() => setSelectedYear(2024)}
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
@@ -528,6 +535,35 @@ export default function InvestorDashboard() {
             </div>
 
             <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Geographic Split</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <KPICard
+                  title="GMV EU"
+                  value={`$${metrics.totalGmvEU.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.gmvEU}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="blue"
+                />
+                
+                <KPICard
+                  title="GMV Outside EU"
+                  value={`$${metrics.totalGmvOutsideEU.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.gmvOutsideEU}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="purple"
+                />
+                
+                <KPICard
+                  title="Avg Properties"
+                  value={metrics.avgProperties.toFixed(0)}
+                  growth={metrics.growth.properties}
+                  icon={<Home className="w-6 h-6" />}
+                  color="orange"
+                />
+              </div>
+            </div>
+
+            <div className="mb-8">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Operations</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                 <KPICard
@@ -645,6 +681,49 @@ export default function InvestorDashboard() {
                     />
                     <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
                   </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">GMV: EU vs Outside EU</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorEU" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorOutsideEU" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Legend />
+                    <Area type="monotone" dataKey="gmvEU" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEU)" strokeWidth={2} name="GMV EU" />
+                    <Area type="monotone" dataKey="gmvOutsideEU" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorOutsideEU)" strokeWidth={2} name="GMV Outside EU" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Properties Trend</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                    />
+                    <Line type="monotone" dataKey="properties" stroke="#f97316" strokeWidth={3} dot={{ fill: '#f97316', r: 5 }} name="Properties" />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
 
