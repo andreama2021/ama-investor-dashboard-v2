@@ -112,7 +112,14 @@ export default function InvestorDashboard() {
     
     let startDate, endDate, prevStartDate, prevEndDate;
     
-    if (period === 'lastMonth') {
+    if (selectedYear === 'lifetime') {
+      // Lifetime: Jan 2023 to most recent date
+      startDate = new Date(2023, 0, 1);
+      endDate = new Date();
+      prevStartDate = new Date(2022, 0, 1);
+      prevEndDate = new Date(2022, 11, 31, 23, 59, 59);
+      
+    } else if (period === 'lastMonth') {
       const today = new Date();
       const isCurrentYear = selectedYear === today.getFullYear();
       
@@ -201,9 +208,9 @@ export default function InvestorDashboard() {
         currentCash: 0,
         latestTTM: 0,
         runway: 0,
-        totalGmvEU: 0,
-        totalGmvOutsideEU: 0,
-        avgProperties: 0,
+        avgGmvEU: 0,
+        avgGmvOutsideEU: 0,
+        currentProperties: 0,
         growth: {}
       };
     }
@@ -219,9 +226,9 @@ export default function InvestorDashboard() {
     const marketingEfficiency = totalMarketingSpend > 0 ? (totalRevenue / totalMarketingSpend) * 100 : 0;
     const currentCash = current[current.length - 1]?.cashPosition || 0;
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
-    const totalGmvEU = current.reduce((sum, item) => sum + item.gmvEU, 0);
-    const totalGmvOutsideEU = current.reduce((sum, item) => sum + item.gmvOutsideEU, 0);
-    const avgProperties = current.reduce((sum, item) => sum + item.properties, 0) / current.length;
+    const avgGmvEU = current.reduce((sum, item) => sum + item.gmvEU, 0) / current.length;
+    const avgGmvOutsideEU = current.reduce((sum, item) => sum + item.gmvOutsideEU, 0) / current.length;
+    const currentProperties = current[current.length - 1]?.properties || 0;
     
     const avgMonthlyRevenue = totalRevenue / current.length;
     const avgMonthlyMarketing = totalMarketingSpend / current.length;
@@ -237,9 +244,9 @@ export default function InvestorDashboard() {
     const prevAvgNPS = previous.length > 0 ? previous.reduce((sum, item) => sum + item.nps, 0) / previous.length : 0;
     const prevTotalMarketingSpend = previous.reduce((sum, item) => sum + item.marketingSpend, 0);
     const prevMarketingEfficiency = prevTotalMarketingSpend > 0 ? (prevTotalRevenue / prevTotalMarketingSpend) * 100 : 0;
-    const prevTotalGmvEU = previous.reduce((sum, item) => sum + item.gmvEU, 0);
-    const prevTotalGmvOutsideEU = previous.reduce((sum, item) => sum + item.gmvOutsideEU, 0);
-    const prevAvgProperties = previous.length > 0 ? previous.reduce((sum, item) => sum + item.properties, 0) / previous.length : 0;
+    const prevAvgGmvEU = previous.length > 0 ? previous.reduce((sum, item) => sum + item.gmvEU, 0) / previous.length : 0;
+    const prevAvgGmvOutsideEU = previous.length > 0 ? previous.reduce((sum, item) => sum + item.gmvOutsideEU, 0) / previous.length : 0;
+    const prevProperties = previous[previous.length - 1]?.properties || 0;
     
     const calculateGrowth = (current, previous) => {
       if (previous === 0) return current > 0 ? 100 : 0;
@@ -259,9 +266,9 @@ export default function InvestorDashboard() {
       currentCash,
       latestTTM,
       runway,
-      totalGmvEU,
-      totalGmvOutsideEU,
-      avgProperties,
+      avgGmvEU,
+      avgGmvOutsideEU,
+      currentProperties,
       growth: {
         gmv: calculateGrowth(totalGMV, prevTotalGMV),
         revenue: calculateGrowth(totalRevenue, prevTotalRevenue),
@@ -271,9 +278,9 @@ export default function InvestorDashboard() {
         users: calculateGrowth(currentUsers, prevUsers),
         nps: calculateGrowth(avgNPS, prevAvgNPS),
         marketingEfficiency: calculateGrowth(marketingEfficiency, prevMarketingEfficiency),
-        gmvEU: calculateGrowth(totalGmvEU, prevTotalGmvEU),
-        gmvOutsideEU: calculateGrowth(totalGmvOutsideEU, prevTotalGmvOutsideEU),
-        properties: calculateGrowth(avgProperties, prevAvgProperties)
+        gmvEU: avgGmvEU - prevAvgGmvEU,
+        gmvOutsideEU: avgGmvOutsideEU - prevAvgGmvOutsideEU,
+        properties: calculateGrowth(currentProperties, prevProperties)
       }
     };
   };
@@ -397,6 +404,14 @@ export default function InvestorDashboard() {
               >
                 2026
               </button>
+              <button
+                onClick={() => setSelectedYear('lifetime')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 'lifetime' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Lifetime
+              </button>
             </div>
           </div>
           
@@ -408,6 +423,7 @@ export default function InvestorDashboard() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   period === 'lastMonth' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
+                disabled={selectedYear === 'lifetime'}
               >
                 Last Full Month
               </button>
@@ -416,6 +432,7 @@ export default function InvestorDashboard() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   period === 'Q1' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
+                disabled={selectedYear === 'lifetime'}
               >
                 Q1
               </button>
@@ -424,6 +441,7 @@ export default function InvestorDashboard() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   period === 'Q2' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
+                disabled={selectedYear === 'lifetime'}
               >
                 Q2
               </button>
@@ -432,6 +450,7 @@ export default function InvestorDashboard() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   period === 'Q3' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
+                disabled={selectedYear === 'lifetime'}
               >
                 Q3
               </button>
@@ -440,6 +459,7 @@ export default function InvestorDashboard() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   period === 'Q4' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
+                disabled={selectedYear === 'lifetime'}
               >
                 Q4
               </button>
@@ -448,6 +468,7 @@ export default function InvestorDashboard() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   period === 'fullYear' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
+                disabled={selectedYear === 'lifetime'}
               >
                 Full Year
               </button>
@@ -456,13 +477,14 @@ export default function InvestorDashboard() {
                 className={`px-4 py-2 rounded-lg font-medium transition-colors ${
                   period === 'custom' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                 }`}
+                disabled={selectedYear === 'lifetime'}
               >
                 Custom Range
               </button>
             </div>
           </div>
           
-          {period === 'custom' && (
+          {period === 'custom' && selectedYear !== 'lifetime' && (
             <div className="flex gap-4 mt-4">
               <input
                 type="date"
@@ -539,23 +561,25 @@ export default function InvestorDashboard() {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <KPICard
                   title="GMV EU"
-                  value={`$${metrics.totalGmvEU.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  value={`${metrics.avgGmvEU.toFixed(0)}%`}
                   growth={metrics.growth.gmvEU}
                   icon={<DollarSign className="w-6 h-6" />}
                   color="blue"
+                  isPercentage={true}
                 />
                 
                 <KPICard
                   title="GMV Outside EU"
-                  value={`$${metrics.totalGmvOutsideEU.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  value={`${metrics.avgGmvOutsideEU.toFixed(0)}%`}
                   growth={metrics.growth.gmvOutsideEU}
                   icon={<DollarSign className="w-6 h-6" />}
                   color="purple"
+                  isPercentage={true}
                 />
                 
                 <KPICard
-                  title="Avg Properties"
-                  value={metrics.avgProperties.toFixed(0)}
+                  title="Live Properties"
+                  value={metrics.currentProperties.toFixed(0)}
                   growth={metrics.growth.properties}
                   icon={<Home className="w-6 h-6" />}
                   color="orange"
@@ -703,11 +727,11 @@ export default function InvestorDashboard() {
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                      formatter={(value) => `${value.toFixed(0)}%`}
                     />
                     <Legend />
-                    <Area type="monotone" dataKey="gmvEU" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEU)" strokeWidth={2} name="GMV EU" />
-                    <Area type="monotone" dataKey="gmvOutsideEU" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorOutsideEU)" strokeWidth={2} name="GMV Outside EU" />
+                    <Area type="monotone" dataKey="gmvEU" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEU)" strokeWidth={2} name="GMV EU %" />
+                    <Area type="monotone" dataKey="gmvOutsideEU" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorOutsideEU)" strokeWidth={2} name="GMV Outside EU %" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -807,7 +831,7 @@ export default function InvestorDashboard() {
   );
 }
 
-function KPICard({ title, value, growth, icon, color, invertGrowth = false, subtitle }) {
+function KPICard({ title, value, growth, icon, color, invertGrowth = false, subtitle, isPercentage = false }) {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600',
     green: 'bg-green-50 text-green-600',
@@ -832,7 +856,7 @@ function KPICard({ title, value, growth, icon, color, invertGrowth = false, subt
             isPositive ? 'text-green-600' : 'text-red-600'
           }`}>
             {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            {Math.abs(growth).toFixed(1)}%
+            {isPercentage ? `${Math.abs(growth).toFixed(1)}pp` : `${Math.abs(growth).toFixed(1)}%`}
           </div>
         )}
       </div>
