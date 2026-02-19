@@ -24,6 +24,7 @@ export default function InvestorDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [period, setPeriod] = useState('lastMonth');
+const [selectedYear, setSelectedYear] = useState(2026); // Current year default
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
@@ -111,36 +112,77 @@ export default function InvestorDashboard() {
   const getFilteredData = () => {
   if (!data) return { current: [], previous: [] };
   
-  const now = new Date();
   let startDate, endDate, prevStartDate, prevEndDate;
   
+  // Handle different period types
   if (period === 'lastMonth') {
-    // Get the last complete month
+    // Get the last complete month of selected year or current last month
     const today = new Date();
-    const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+    const isCurrentYear = selectedYear === today.getFullYear();
     
-    // Last complete month
-    endDate = new Date(firstDayThisMonth.getTime() - 1); // Last day of previous month
-    startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1); // First day of that month
+    if (isCurrentYear) {
+      const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      endDate = new Date(firstDayThisMonth.getTime() - 1);
+      startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+    } else {
+      // December of selected year
+      startDate = new Date(selectedYear, 11, 1);
+      endDate = new Date(selectedYear, 11, 31);
+    }
     
-    // Same month last year
+    // Previous year same month
     prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), 1);
-    prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth() + 1, 0); // Last day of that month
+    prevEndDate = new Date(prevStartDate.getFullYear(), prevStartDate.getMonth() + 1, 0);
+    
+  } else if (period === 'Q1') {
+    startDate = new Date(selectedYear, 0, 1);  // Jan 1
+    endDate = new Date(selectedYear, 2, 31);    // Mar 31
+    prevStartDate = new Date(selectedYear - 1, 0, 1);
+    prevEndDate = new Date(selectedYear - 1, 2, 31);
+    
+  } else if (period === 'Q2') {
+    startDate = new Date(selectedYear, 3, 1);  // Apr 1
+    endDate = new Date(selectedYear, 5, 30);    // Jun 30
+    prevStartDate = new Date(selectedYear - 1, 3, 1);
+    prevEndDate = new Date(selectedYear - 1, 5, 30);
+    
+  } else if (period === 'Q3') {
+    startDate = new Date(selectedYear, 6, 1);  // Jul 1
+    endDate = new Date(selectedYear, 8, 30);    // Sep 30
+    prevStartDate = new Date(selectedYear - 1, 6, 1);
+    prevEndDate = new Date(selectedYear - 1, 8, 30);
+    
+  } else if (period === 'Q4') {
+    startDate = new Date(selectedYear, 9, 1);  // Oct 1
+    endDate = new Date(selectedYear, 11, 31);   // Dec 31
+    prevStartDate = new Date(selectedYear - 1, 9, 1);
+    prevEndDate = new Date(selectedYear - 1, 11, 31);
+    
+  } else if (period === 'fullYear') {
+    startDate = new Date(selectedYear, 0, 1);   // Jan 1
+    endDate = new Date(selectedYear, 11, 31);   // Dec 31
+    prevStartDate = new Date(selectedYear - 1, 0, 1);
+    prevEndDate = new Date(selectedYear - 1, 11, 31);
     
   } else if (period === 'custom' && customStartDate && customEndDate) {
     startDate = new Date(customStartDate);
     endDate = new Date(customEndDate);
-    // Compare to same period last year
-    prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
-    prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
-  } else {
-    const days = parseInt(period);
-    endDate = now;
-    startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-    // Compare to same period last year
-    prevStartDate = new Date(startDate.getTime() - 365 * 24 * 60 * 60 * 1000);
-    prevEndDate = new Date(endDate.getTime() - 365 * 24 * 60 * 60 * 1000);
+    prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), startDate.getDate());
+    prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate());
   }
+  
+  const current = data.filter(item => {
+    const itemDate = new Date(item.date);
+    return itemDate >= startDate && itemDate <= endDate;
+  });
+  
+  const previous = data.filter(item => {
+    const itemDate = new Date(item.date);
+    return itemDate >= prevStartDate && itemDate <= prevEndDate;
+  });
+  
+  return { current, previous };
+};
   
   const current = data.filter(item => {
   const itemDate = new Date(item.date);
@@ -342,52 +384,122 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Period Filter */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-slate-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Time Period</h2>
-          </div>
-          
-          <div className="flex flex-wrap gap-3">
-  <button
-    onClick={() => setPeriod('lastMonth')}
-    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-      period === 'lastMonth' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-    }`}
-  >
-    Last Full Month
-  </button>
-  <button
-    onClick={() => setPeriod('90')}
-    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-      period === '90' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200' 
-    }`}
-  >
-    Last Quarter
-  </button>
-  <button
-    onClick={() => setPeriod('180')}
-    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-      period === '180' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-    }`}
-  >
-    Last 6 Months
-  </button>
-  <button
-    onClick={() => setPeriod('365')}
-    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-      period === '365' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-    }`}
-  >
-    Last Year
-  </button>
-  <button
-    onClick={() => setPeriod('custom')}
-    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-      period === 'custom' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-    }`}
-  >
-    Custom Range
-  </button>
+  <div className="flex items-center gap-2 mb-4">
+    <Calendar className="w-5 h-5 text-slate-600" />
+    <h2 className="text-lg font-semibold text-slate-900">Time Period</h2>
+  </div>
+  
+  {/* Year Selection - First Row */}
+  <div className="mb-3">
+    <p className="text-sm text-slate-600 mb-2">Select Year</p>
+    <div className="flex flex-wrap gap-3">
+      <button
+        onClick={() => setSelectedYear(2024)}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          selectedYear === 2024 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        2024
+      </button>
+      <button
+        onClick={() => setSelectedYear(2025)}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          selectedYear === 2025 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        2025
+      </button>
+      <button
+        onClick={() => setSelectedYear(2026)}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          selectedYear === 2026 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        2026
+      </button>
+    </div>
+  </div>
+  
+  {/* Period Selection - Second Row */}
+  <div>
+    <p className="text-sm text-slate-600 mb-2">Select Period</p>
+    <div className="flex flex-wrap gap-3">
+      <button
+        onClick={() => setPeriod('lastMonth')}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          period === 'lastMonth' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        Last Full Month
+      </button>
+      <button
+        onClick={() => setPeriod('Q1')}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          period === 'Q1' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        Q1
+      </button>
+      <button
+        onClick={() => setPeriod('Q2')}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          period === 'Q2' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        Q2
+      </button>
+      <button
+        onClick={() => setPeriod('Q3')}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          period === 'Q3' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        Q3
+      </button>
+      <button
+        onClick={() => setPeriod('Q4')}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          period === 'Q4' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        Q4
+      </button>
+      <button
+        onClick={() => setPeriod('fullYear')}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          period === 'fullYear' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        Full Year
+      </button>
+      <button
+        onClick={() => setPeriod('custom')}
+        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+          period === 'custom' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+        }`}
+      >
+        Custom Range
+      </button>
+    </div>
+  </div>
+  
+  {/* Custom Date Inputs */}
+  {period === 'custom' && (
+    <div className="flex gap-4 mt-4">
+      <input
+        type="date"
+        value={customStartDate}
+        onChange={(e) => setCustomStartDate(e.target.value)}
+        className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
+      />
+      <input
+        type="date"
+        value={customEndDate}
+        onChange={(e) => setCustomEndDate(e.target.value)}
+        className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
+      />
+    </div>
+  )}
 </div>
           
           {period === 'custom' && (
