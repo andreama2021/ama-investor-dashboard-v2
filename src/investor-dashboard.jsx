@@ -5,7 +5,6 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 // ============================================
 // CONFIGURATION - UPDATE THESE VALUES
 // ============================================
-//v2
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
@@ -24,7 +23,7 @@ export default function InvestorDashboard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [period, setPeriod] = useState('lastMonth');
-const [selectedYear, setSelectedYear] = useState(2026); // Current year default
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
@@ -85,8 +84,6 @@ const [selectedYear, setSelectedYear] = useState(2026); // Current year default
   const parseSheetData = (rows) => {
     if (!rows || rows.length < 2) return null;
     
-    // Expected columns: Date, GMV_Total, GMV_Rentals, GMV_Services, Revenue_Total, Revenue_Rentals, Revenue_Services, 
-    // Bookings, Nights, Avg_Booking_Value, Users, NPS, Marketing_Spend, Cash_Position, TTM_Revenue
     const headers = rows[0];
     const dataRows = rows.slice(1);
     
@@ -106,120 +103,85 @@ const [selectedYear, setSelectedYear] = useState(2026); // Current year default
       marketingSpend: parseFloat(row[12]) || 0,
       cashPosition: parseFloat(row[13]) || 0,
       ttmRevenue: parseFloat(row[14]) || 0
-    })).filter(item => item.date); // Filter out empty rows
+    })).filter(item => item.date);
   };
 
   const getFilteredData = () => {
-  if (!data) return { current: [], previous: [] };
-  
-  let startDate, endDate, prevStartDate, prevEndDate;
-  
-  // Handle different period types
-  if (period === 'lastMonth') {
-    // Get the last complete month of selected year or current last month
-    const today = new Date();
-    const isCurrentYear = selectedYear === today.getFullYear();
+    if (!data) return { current: [], previous: [] };
     
-    if (isCurrentYear) {
-      const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-      endDate = new Date(firstDayThisMonth.getTime() - 1);
-      startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
-    } else {
-      // December of selected year
-      startDate = new Date(selectedYear, 11, 1);
+    let startDate, endDate, prevStartDate, prevEndDate;
+    
+    if (period === 'lastMonth') {
+      const today = new Date();
+      const isCurrentYear = selectedYear === today.getFullYear();
+      
+      if (isCurrentYear) {
+        const firstDayThisMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        endDate = new Date(firstDayThisMonth.getTime() - 1);
+        startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
+      } else {
+        startDate = new Date(selectedYear, 11, 1);
+        endDate = new Date(selectedYear, 11, 31);
+      }
+      
+      prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), 1);
+      prevEndDate = new Date(prevStartDate.getFullYear(), prevStartDate.getMonth() + 1, 0);
+      
+    } else if (period === 'Q1') {
+      startDate = new Date(selectedYear, 0, 1);
+      endDate = new Date(selectedYear, 2, 31);
+      prevStartDate = new Date(selectedYear - 1, 0, 1);
+      prevEndDate = new Date(selectedYear - 1, 2, 31);
+      
+    } else if (period === 'Q2') {
+      startDate = new Date(selectedYear, 3, 1);
+      endDate = new Date(selectedYear, 5, 30);
+      prevStartDate = new Date(selectedYear - 1, 3, 1);
+      prevEndDate = new Date(selectedYear - 1, 5, 30);
+      
+    } else if (period === 'Q3') {
+      startDate = new Date(selectedYear, 6, 1);
+      endDate = new Date(selectedYear, 8, 30);
+      prevStartDate = new Date(selectedYear - 1, 6, 1);
+      prevEndDate = new Date(selectedYear - 1, 8, 30);
+      
+    } else if (period === 'Q4') {
+      startDate = new Date(selectedYear, 9, 1);
       endDate = new Date(selectedYear, 11, 31);
+      prevStartDate = new Date(selectedYear - 1, 9, 1);
+      prevEndDate = new Date(selectedYear - 1, 11, 31);
+      
+    } else if (period === 'fullYear') {
+      startDate = new Date(selectedYear, 0, 1);
+      endDate = new Date(selectedYear, 11, 31);
+      prevStartDate = new Date(selectedYear - 1, 0, 1);
+      prevEndDate = new Date(selectedYear - 1, 11, 31);
+      
+    } else if (period === 'custom' && customStartDate && customEndDate) {
+      startDate = new Date(customStartDate);
+      endDate = new Date(customEndDate);
+      prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), startDate.getDate());
+      prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate());
+    } else {
+      // Default fallback
+      startDate = new Date();
+      endDate = new Date();
+      prevStartDate = new Date();
+      prevEndDate = new Date();
     }
     
-    // Previous year same month
-    prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), 1);
-    prevEndDate = new Date(prevStartDate.getFullYear(), prevStartDate.getMonth() + 1, 0);
+    const current = data.filter(item => {
+      const itemDate = new Date(item.date);
+      return itemDate >= startDate && itemDate <= endDate;
+    });
     
-  } else if (period === 'Q1') {
-    startDate = new Date(selectedYear, 0, 1);  // Jan 1
-    endDate = new Date(selectedYear, 2, 31);    // Mar 31
-    prevStartDate = new Date(selectedYear - 1, 0, 1);
-    prevEndDate = new Date(selectedYear - 1, 2, 31);
+    const previous = data.filter(item => {
+      const itemDate = new Date(item.date);
+      return itemDate >= prevStartDate && itemDate <= prevEndDate;
+    });
     
-  } else if (period === 'Q2') {
-    startDate = new Date(selectedYear, 3, 1);  // Apr 1
-    endDate = new Date(selectedYear, 5, 30);    // Jun 30
-    prevStartDate = new Date(selectedYear - 1, 3, 1);
-    prevEndDate = new Date(selectedYear - 1, 5, 30);
-    
-  } else if (period === 'Q3') {
-    startDate = new Date(selectedYear, 6, 1);  // Jul 1
-    endDate = new Date(selectedYear, 8, 30);    // Sep 30
-    prevStartDate = new Date(selectedYear - 1, 6, 1);
-    prevEndDate = new Date(selectedYear - 1, 8, 30);
-    
-  } else if (period === 'Q4') {
-    startDate = new Date(selectedYear, 9, 1);  // Oct 1
-    endDate = new Date(selectedYear, 11, 31);   // Dec 31
-    prevStartDate = new Date(selectedYear - 1, 9, 1);
-    prevEndDate = new Date(selectedYear - 1, 11, 31);
-    
-  } else if (period === 'fullYear') {
-    startDate = new Date(selectedYear, 0, 1);   // Jan 1
-    endDate = new Date(selectedYear, 11, 31);   // Dec 31
-    prevStartDate = new Date(selectedYear - 1, 0, 1);
-    prevEndDate = new Date(selectedYear - 1, 11, 31);
-    
-  } else if (period === 'custom' && customStartDate && customEndDate) {
-    startDate = new Date(customStartDate);
-    endDate = new Date(customEndDate);
-    prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), startDate.getDate());
-    prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate());
-  }
-  
-  const current = data.filter(item => {
-    const itemDate = new Date(item.date);
-    return itemDate >= startDate && itemDate <= endDate;
-  });
-  
-  const previous = data.filter(item => {
-    const itemDate = new Date(item.date);
-    return itemDate >= prevStartDate && itemDate <= prevEndDate;
-  });
-  
-  return { current, previous };
-};
-  
-  const current = data.filter(item => {
-  const itemDate = new Date(item.date);
-  const itemYear = itemDate.getFullYear();
-  const itemMonth = itemDate.getMonth();
-  const startYear = startDate.getFullYear();
-  const startMonth = startDate.getMonth();
-  const endYear = endDate.getFullYear();
-  const endMonth = endDate.getMonth();
-  
-  // For lastMonth, only match the specific month
-  if (period === 'lastMonth') {
-    return itemYear === startYear && itemMonth === startMonth;
-  }
-  
-  return itemDate >= startDate && itemDate <= endDate;
-});
-
-const previous = data.filter(item => {
-  const itemDate = new Date(item.date);
-  const itemYear = itemDate.getFullYear();
-  const itemMonth = itemDate.getMonth();
-  const prevStartYear = prevStartDate.getFullYear();
-  const prevStartMonth = prevStartDate.getMonth();
-  const prevEndYear = prevEndDate.getFullYear();
-  const prevEndMonth = prevEndDate.getMonth();
-  
-  // For lastMonth, only match the specific month
-  if (period === 'lastMonth') {
-    return itemYear === prevStartYear && itemMonth === prevStartMonth;
-  }
-  
-  return itemDate >= prevStartDate && itemDate < prevEndDate;
-});
-  
-  return { current, previous };
-};
+    return { current, previous };
+  };
 
   const calculateMetrics = () => {
     const { current, previous } = getFilteredData();
@@ -242,7 +204,6 @@ const previous = data.filter(item => {
       };
     }
     
-    // Current period metrics
     const totalGMV = current.reduce((sum, item) => sum + item.gmvTotal, 0);
     const totalRevenue = current.reduce((sum, item) => sum + item.revenueTotal, 0);
     const totalBookings = current.reduce((sum, item) => sum + item.bookings, 0);
@@ -255,13 +216,11 @@ const previous = data.filter(item => {
     const currentCash = current[current.length - 1]?.cashPosition || 0;
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
     
-    // Calculate runway (months)
-const avgMonthlyRevenue = totalRevenue / current.length;
-const avgMonthlyMarketing = totalMarketingSpend / current.length;
-const netBurn = avgMonthlyMarketing - avgMonthlyRevenue;
-const runway = netBurn > 0 ? currentCash / netBurn : 999;
+    const avgMonthlyRevenue = totalRevenue / current.length;
+    const avgMonthlyMarketing = totalMarketingSpend / current.length;
+    const netBurn = avgMonthlyMarketing - avgMonthlyRevenue;
+    const runway = netBurn > 0 ? currentCash / netBurn : 999;
     
-    // Previous period metrics
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
     const prevTotalRevenue = previous.reduce((sum, item) => sum + item.revenueTotal, 0);
     const prevTotalBookings = previous.reduce((sum, item) => sum + item.bookings, 0);
@@ -310,12 +269,12 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
         <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
           <div className="text-center mb-8">
             <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-white">
-  <img 
-    src="/Logo_A_icon.jpg" 
-    alt="A.M.A Selections" 
-    className="w-14 h-14 object-contain"
-  />
-</div>
+              <img 
+                src="/Logo_A_icon.jpg" 
+                alt="A.M.A Selections" 
+                className="w-14 h-14 object-contain"
+              />
+            </div>
             <h1 className="text-3xl font-bold text-slate-900 mb-2">A.M.A Selections</h1>
             <p className="text-slate-600">Investor Dashboard</p>
             <p className="text-slate-500 text-sm mt-2">Enter PIN to access</p>
@@ -327,7 +286,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
               value={pinInput}
               onChange={(e) => setPinInput(e.target.value)}
               placeholder="Enter PIN"
-              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:border-blue-600 focus:outline-none text-center text-2xl tracking-widest mb-4"
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none text-center text-2xl tracking-widest mb-4"
               maxLength="6"
               autoFocus
             />
@@ -340,7 +299,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
             
             <button
               type="submit"
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors"
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 rounded-lg transition-colors"
             >
               Access Dashboard
             </button>
@@ -361,16 +320,16 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-  <img 
-    src="/Logo_A_icon.jpg" 
-    alt="A.M.A Selections" 
-    className="w-10 h-10 object-contain"
-  />
-  <div>
-    <h1 className="text-2xl font-bold text-slate-900">A.M.A Selections</h1>
-    <p className="text-xs text-slate-500">Investor Dashboard</p>
-  </div>
-</div>
+              <img 
+                src="/Logo_A_icon.jpg" 
+                alt="A.M.A Selections" 
+                className="w-10 h-10 object-contain"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">A.M.A Selections</h1>
+                <p className="text-xs text-slate-500">Investor Dashboard</p>
+              </div>
+            </div>
             <button
               onClick={handleLogout}
               className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 font-medium"
@@ -384,137 +343,119 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
         {/* Period Filter */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-  <div className="flex items-center gap-2 mb-4">
-    <Calendar className="w-5 h-5 text-slate-600" />
-    <h2 className="text-lg font-semibold text-slate-900">Time Period</h2>
-  </div>
-  
-  {/* Year Selection - First Row */}
-  <div className="mb-3">
-    <p className="text-sm text-slate-600 mb-2">Select Year</p>
-    <div className="flex flex-wrap gap-3">
-      <button
-        onClick={() => setSelectedYear(2024)}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          selectedYear === 2024 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        2024
-      </button>
-      <button
-        onClick={() => setSelectedYear(2025)}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          selectedYear === 2025 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        2025
-      </button>
-      <button
-        onClick={() => setSelectedYear(2026)}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          selectedYear === 2026 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        2026
-      </button>
-    </div>
-  </div>
-  
-  {/* Period Selection - Second Row */}
-  <div>
-    <p className="text-sm text-slate-600 mb-2">Select Period</p>
-    <div className="flex flex-wrap gap-3">
-      <button
-        onClick={() => setPeriod('lastMonth')}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          period === 'lastMonth' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        Last Full Month
-      </button>
-      <button
-        onClick={() => setPeriod('Q1')}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          period === 'Q1' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        Q1
-      </button>
-      <button
-        onClick={() => setPeriod('Q2')}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          period === 'Q2' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        Q2
-      </button>
-      <button
-        onClick={() => setPeriod('Q3')}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          period === 'Q3' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        Q3
-      </button>
-      <button
-        onClick={() => setPeriod('Q4')}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          period === 'Q4' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        Q4
-      </button>
-      <button
-        onClick={() => setPeriod('fullYear')}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          period === 'fullYear' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        Full Year
-      </button>
-      <button
-        onClick={() => setPeriod('custom')}
-        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-          period === 'custom' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-        }`}
-      >
-        Custom Range
-      </button>
-    </div>
-  </div>
-  
-  {/* Custom Date Inputs */}
-  {period === 'custom' && (
-    <div className="flex gap-4 mt-4">
-      <input
-        type="date"
-        value={customStartDate}
-        onChange={(e) => setCustomStartDate(e.target.value)}
-        className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
-      />
-      <input
-        type="date"
-        value={customEndDate}
-        onChange={(e) => setCustomEndDate(e.target.value)}
-        className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
-      />
-    </div>
-  )}
-</div>
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-5 h-5 text-slate-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Time Period</h2>
+          </div>
           
+          {/* Year Selection - First Row */}
+          <div className="mb-3">
+            <p className="text-sm text-slate-600 mb-2">Select Year</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setSelectedYear(2024)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2024 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2024
+              </button>
+              <button
+                onClick={() => setSelectedYear(2025)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2025 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2025
+              </button>
+              <button
+                onClick={() => setSelectedYear(2026)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2026 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2026
+              </button>
+            </div>
+          </div>
+          
+          {/* Period Selection - Second Row */}
+          <div>
+            <p className="text-sm text-slate-600 mb-2">Select Period</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setPeriod('lastMonth')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'lastMonth' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Last Full Month
+              </button>
+              <button
+                onClick={() => setPeriod('Q1')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q1' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Q1
+              </button>
+              <button
+                onClick={() => setPeriod('Q2')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q2' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Q2
+              </button>
+              <button
+                onClick={() => setPeriod('Q3')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q3' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Q3
+              </button>
+              <button
+                onClick={() => setPeriod('Q4')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q4' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Q4
+              </button>
+              <button
+                onClick={() => setPeriod('fullYear')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'fullYear' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Full Year
+              </button>
+              <button
+                onClick={() => setPeriod('custom')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'custom' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Custom Range
+              </button>
+            </div>
+          </div>
+          
+          {/* Custom Date Inputs */}
           {period === 'custom' && (
             <div className="flex gap-4 mt-4">
               <input
                 type="date"
                 value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-blue-600 focus:outline-none"
+                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
               />
               <input
                 type="date"
                 value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-blue-600 focus:outline-none"
+                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
               />
             </div>
           )}
@@ -522,7 +463,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
 
         {loading && (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <div className="inline-block w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <div className="inline-block w-8 h-8 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mb-4"></div>
             <p className="text-slate-600">Loading data...</p>
           </div>
         )}
@@ -671,7 +612,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="gmvTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorGMV)" strokeWidth={2} />
                   </AreaChart>
@@ -694,7 +635,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
                   </AreaChart>
@@ -736,7 +677,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} />
                   </AreaChart>
@@ -753,7 +694,7 @@ const runway = netBurn > 0 ? currentCash / netBurn : 999;
                     <YAxis stroke="#64748b" />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${(value / 1000).toFixed(1)}k`}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Legend />
                     <Bar dataKey="marketingSpend" fill="#ef4444" radius={[8, 8, 0, 0]} name="Marketing Spend" />
@@ -820,8 +761,8 @@ function KPICard({ title, value, growth, icon, color, invertGrowth = false, subt
       <h3 className="text-slate-600 text-sm font-medium mb-1">{title}</h3>
       <p className="text-3xl font-bold text-slate-900">{value}</p>
       {showGrowth && (
-  <p className="text-xs text-slate-500 mt-2">vs same period last year</p>
-)}
+        <p className="text-xs text-slate-500 mt-2">vs same period last year</p>
+      )}
       {subtitle && !showGrowth && (
         <p className="text-xs text-slate-500 mt-2">{subtitle}</p>
       )}
