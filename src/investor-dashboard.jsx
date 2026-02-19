@@ -27,7 +27,6 @@ export default function InvestorDashboard() {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
-  // Check if already authenticated
   useEffect(() => {
     const auth = sessionStorage.getItem('dashboard_auth');
     if (auth === 'true') {
@@ -35,7 +34,6 @@ export default function InvestorDashboard() {
     }
   }, []);
 
-  // Fetch data when authenticated
   useEffect(() => {
     if (isAuthenticated) {
       fetchData();
@@ -120,50 +118,51 @@ export default function InvestorDashboard() {
         endDate = new Date(firstDayThisMonth.getTime() - 1);
         startDate = new Date(endDate.getFullYear(), endDate.getMonth(), 1);
       } else {
+        // December of selected year
         startDate = new Date(selectedYear, 11, 1);
-        endDate = new Date(selectedYear, 11, 31);
+        endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
       }
       
       prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), 1);
-      prevEndDate = new Date(prevStartDate.getFullYear(), prevStartDate.getMonth() + 1, 0);
+      prevEndDate = new Date(prevStartDate.getFullYear(), prevStartDate.getMonth() + 1, 0, 23, 59, 59);
       
     } else if (period === 'Q1') {
       startDate = new Date(selectedYear, 0, 1);
-      endDate = new Date(selectedYear, 2, 31);
+      endDate = new Date(selectedYear, 2, 31, 23, 59, 59);
       prevStartDate = new Date(selectedYear - 1, 0, 1);
-      prevEndDate = new Date(selectedYear - 1, 2, 31);
+      prevEndDate = new Date(selectedYear - 1, 2, 31, 23, 59, 59);
       
     } else if (period === 'Q2') {
       startDate = new Date(selectedYear, 3, 1);
-      endDate = new Date(selectedYear, 5, 30);
+      endDate = new Date(selectedYear, 5, 30, 23, 59, 59);
       prevStartDate = new Date(selectedYear - 1, 3, 1);
-      prevEndDate = new Date(selectedYear - 1, 5, 30);
+      prevEndDate = new Date(selectedYear - 1, 5, 30, 23, 59, 59);
       
     } else if (period === 'Q3') {
       startDate = new Date(selectedYear, 6, 1);
-      endDate = new Date(selectedYear, 8, 30);
+      endDate = new Date(selectedYear, 8, 30, 23, 59, 59);
       prevStartDate = new Date(selectedYear - 1, 6, 1);
-      prevEndDate = new Date(selectedYear - 1, 8, 30);
+      prevEndDate = new Date(selectedYear - 1, 8, 30, 23, 59, 59);
       
     } else if (period === 'Q4') {
       startDate = new Date(selectedYear, 9, 1);
-      endDate = new Date(selectedYear, 11, 31);
+      endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
       prevStartDate = new Date(selectedYear - 1, 9, 1);
-      prevEndDate = new Date(selectedYear - 1, 11, 31);
+      prevEndDate = new Date(selectedYear - 1, 11, 31, 23, 59, 59);
       
     } else if (period === 'fullYear') {
       startDate = new Date(selectedYear, 0, 1);
-      endDate = new Date(selectedYear, 11, 31);
+      endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
       prevStartDate = new Date(selectedYear - 1, 0, 1);
-      prevEndDate = new Date(selectedYear - 1, 11, 31);
+      prevEndDate = new Date(selectedYear - 1, 11, 31, 23, 59, 59);
       
     } else if (period === 'custom' && customStartDate && customEndDate) {
       startDate = new Date(customStartDate);
       endDate = new Date(customEndDate);
+      endDate.setHours(23, 59, 59, 999);
       prevStartDate = new Date(startDate.getFullYear() - 1, startDate.getMonth(), startDate.getDate());
-      prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate());
+      prevEndDate = new Date(endDate.getFullYear() - 1, endDate.getMonth(), endDate.getDate(), 23, 59, 59, 999);
     } else {
-      // Default fallback
       startDate = new Date();
       endDate = new Date();
       prevStartDate = new Date();
@@ -178,6 +177,24 @@ export default function InvestorDashboard() {
     const previous = data.filter(item => {
       const itemDate = new Date(item.date);
       return itemDate >= prevStartDate && itemDate <= prevEndDate;
+    });
+    
+    // Debug logging
+    console.log('Filter Debug:', {
+      period,
+      selectedYear,
+      currentRange: { 
+        start: startDate.toISOString().split('T')[0], 
+        end: endDate.toISOString().split('T')[0] 
+      },
+      previousRange: { 
+        start: prevStartDate.toISOString().split('T')[0], 
+        end: prevEndDate.toISOString().split('T')[0] 
+      },
+      currentCount: current.length,
+      previousCount: previous.length,
+      currentDates: current.map(d => d.date),
+      previousDates: previous.map(d => d.date)
     });
     
     return { current, previous };
@@ -315,7 +332,6 @@ export default function InvestorDashboard() {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between">
@@ -341,14 +357,12 @@ export default function InvestorDashboard() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        {/* Period Filter */}
         <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
           <div className="flex items-center gap-2 mb-4">
             <Calendar className="w-5 h-5 text-slate-600" />
             <h2 className="text-lg font-semibold text-slate-900">Time Period</h2>
           </div>
           
-          {/* Year Selection - First Row */}
           <div className="mb-3">
             <p className="text-sm text-slate-600 mb-2">Select Year</p>
             <div className="flex flex-wrap gap-3">
@@ -379,7 +393,6 @@ export default function InvestorDashboard() {
             </div>
           </div>
           
-          {/* Period Selection - Second Row */}
           <div>
             <p className="text-sm text-slate-600 mb-2">Select Period</p>
             <div className="flex flex-wrap gap-3">
@@ -442,7 +455,6 @@ export default function InvestorDashboard() {
             </div>
           </div>
           
-          {/* Custom Date Inputs */}
           {period === 'custom' && (
             <div className="flex gap-4 mt-4">
               <input
@@ -478,7 +490,6 @@ export default function InvestorDashboard() {
 
         {!loading && !error && metrics && (
           <>
-            {/* GMV & Revenue Section */}
             <div className="mb-8">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Financial Performance</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -516,7 +527,6 @@ export default function InvestorDashboard() {
               </div>
             </div>
 
-            {/* Operations Section */}
             <div className="mb-8">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Operations</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -554,7 +564,6 @@ export default function InvestorDashboard() {
               </div>
             </div>
 
-            {/* Marketing & Finance Section */}
             <div className="mb-8">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Marketing & Runway</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -594,9 +603,7 @@ export default function InvestorDashboard() {
               </div>
             </div>
 
-            {/* Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              {/* GMV Trend */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">GMV Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -619,7 +626,6 @@ export default function InvestorDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Revenue Trend */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Revenue Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -642,7 +648,6 @@ export default function InvestorDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Bookings & Users */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Bookings & Users</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -661,7 +666,6 @@ export default function InvestorDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* TTM Revenue */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Trailing 12-Month Revenue</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -684,7 +688,6 @@ export default function InvestorDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Marketing vs Revenue */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Marketing Spend vs Revenue</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -703,7 +706,6 @@ export default function InvestorDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* NPS Score Trend */}
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">NPS Score Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
@@ -726,9 +728,6 @@ export default function InvestorDashboard() {
   );
 }
 
-// ============================================
-// KPI CARD COMPONENT
-// ============================================
 function KPICard({ title, value, growth, icon, color, invertGrowth = false, subtitle }) {
   const colorClasses = {
     blue: 'bg-blue-50 text-blue-600',
