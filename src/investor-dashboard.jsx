@@ -113,7 +113,6 @@ export default function InvestorDashboard() {
     let startDate, endDate, prevStartDate, prevEndDate;
     
     if (selectedYear === 'lifetime') {
-      // Lifetime: Jan 2023 to most recent date
       startDate = new Date(2023, 0, 1);
       endDate = new Date();
       prevStartDate = new Date(2022, 0, 1);
@@ -160,10 +159,24 @@ export default function InvestorDashboard() {
       prevEndDate = new Date(selectedYear - 1, 11, 31, 23, 59, 59);
       
     } else if (period === 'fullYear') {
-      startDate = new Date(selectedYear, 0, 1);
-      endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
-      prevStartDate = new Date(selectedYear - 1, 0, 1);
-      prevEndDate = new Date(selectedYear - 1, 11, 31, 23, 59, 59);
+      const today = new Date();
+      const isCurrentYear = selectedYear === today.getFullYear();
+      
+      if (isCurrentYear) {
+        // For current year: YTD (Jan to current month)
+        startDate = new Date(selectedYear, 0, 1);
+        endDate = today;
+        
+        // Compare to same period last year
+        prevStartDate = new Date(selectedYear - 1, 0, 1);
+        prevEndDate = new Date(selectedYear - 1, today.getMonth(), today.getDate(), 23, 59, 59);
+      } else {
+        // For past/future years: full calendar year
+        startDate = new Date(selectedYear, 0, 1);
+        endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
+        prevStartDate = new Date(selectedYear - 1, 0, 1);
+        prevEndDate = new Date(selectedYear - 1, 11, 31, 23, 59, 59);
+      }
       
     } else if (period === 'custom' && customStartDate && customEndDate) {
       startDate = new Date(customStartDate);
