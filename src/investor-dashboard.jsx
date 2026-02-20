@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target, Home } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target, Home, Percent } from 'lucide-react';
  
 // ============================================
 // CONFIGURATION - UPDATE THESE VALUES
@@ -163,15 +163,11 @@ export default function InvestorDashboard() {
       const isCurrentYear = selectedYear === today.getFullYear();
       
       if (isCurrentYear) {
-        // For current year: YTD (Jan to current month)
         startDate = new Date(selectedYear, 0, 1);
         endDate = today;
-        
-        // Compare to same period last year
         prevStartDate = new Date(selectedYear - 1, 0, 1);
         prevEndDate = new Date(selectedYear - 1, today.getMonth(), today.getDate(), 23, 59, 59);
       } else {
-        // For past/future years: full calendar year
         startDate = new Date(selectedYear, 0, 1);
         endDate = new Date(selectedYear, 11, 31, 23, 59, 59);
         prevStartDate = new Date(selectedYear - 1, 0, 1);
@@ -214,6 +210,10 @@ export default function InvestorDashboard() {
         totalBookings: 0,
         totalNights: 0,
         avgBookingValue: 0,
+        rentalRevenuePerBooking: 0,
+        servicesRevenuePerBooking: 0,
+        rentalTakeRate: 0,
+        servicesTakeRate: 0,
         currentUsers: 0,
         avgNPS: 0,
         totalMarketingSpend: 0,
@@ -229,10 +229,21 @@ export default function InvestorDashboard() {
     }
     
     const totalGMV = current.reduce((sum, item) => sum + item.gmvTotal, 0);
+    const totalGMVRentals = current.reduce((sum, item) => sum + item.gmvRentals, 0);
+    const totalGMVServices = current.reduce((sum, item) => sum + item.gmvServices, 0);
     const totalRevenue = current.reduce((sum, item) => sum + item.revenueTotal, 0);
+    const totalRevenueRentals = current.reduce((sum, item) => sum + item.revenueRentals, 0);
+    const totalRevenueServices = current.reduce((sum, item) => sum + item.revenueServices, 0);
     const totalBookings = current.reduce((sum, item) => sum + item.bookings, 0);
     const totalNights = current.reduce((sum, item) => sum + item.nights, 0);
     const avgBookingValue = current.reduce((sum, item) => sum + item.avgBookingValue, 0) / current.length;
+    
+    // New metrics
+    const rentalRevenuePerBooking = totalBookings > 0 ? totalRevenueRentals / totalBookings : 0;
+    const servicesRevenuePerBooking = totalBookings > 0 ? totalRevenueServices / totalBookings : 0;
+    const rentalTakeRate = totalGMVRentals > 0 ? (totalRevenueRentals / totalGMVRentals) * 100 : 0;
+    const servicesTakeRate = totalGMVServices > 0 ? (totalRevenueServices / totalGMVServices) * 100 : 0;
+    
     const currentUsers = current[current.length - 1]?.users || 0;
     const avgNPS = current.reduce((sum, item) => sum + item.nps, 0) / current.length;
     const totalMarketingSpend = current.reduce((sum, item) => sum + item.marketingSpend, 0);
@@ -248,11 +259,22 @@ export default function InvestorDashboard() {
     const netBurn = avgMonthlyMarketing - avgMonthlyRevenue;
     const runway = netBurn > 0 ? currentCash / netBurn : 999;
     
+    // Previous period calculations
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
+    const prevTotalGMVRentals = previous.reduce((sum, item) => sum + item.gmvRentals, 0);
+    const prevTotalGMVServices = previous.reduce((sum, item) => sum + item.gmvServices, 0);
     const prevTotalRevenue = previous.reduce((sum, item) => sum + item.revenueTotal, 0);
+    const prevTotalRevenueRentals = previous.reduce((sum, item) => sum + item.revenueRentals, 0);
+    const prevTotalRevenueServices = previous.reduce((sum, item) => sum + item.revenueServices, 0);
     const prevTotalBookings = previous.reduce((sum, item) => sum + item.bookings, 0);
     const prevTotalNights = previous.reduce((sum, item) => sum + item.nights, 0);
     const prevAvgBookingValue = previous.length > 0 ? previous.reduce((sum, item) => sum + item.avgBookingValue, 0) / previous.length : 0;
+    
+    const prevRentalRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueRentals / prevTotalBookings : 0;
+    const prevServicesRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueServices / prevTotalBookings : 0;
+    const prevRentalTakeRate = prevTotalGMVRentals > 0 ? (prevTotalRevenueRentals / prevTotalGMVRentals) * 100 : 0;
+    const prevServicesTakeRate = prevTotalGMVServices > 0 ? (prevTotalRevenueServices / prevTotalGMVServices) * 100 : 0;
+    
     const prevUsers = previous[previous.length - 1]?.users || 0;
     const prevAvgNPS = previous.length > 0 ? previous.reduce((sum, item) => sum + item.nps, 0) / previous.length : 0;
     const prevTotalMarketingSpend = previous.reduce((sum, item) => sum + item.marketingSpend, 0);
@@ -272,6 +294,10 @@ export default function InvestorDashboard() {
       totalBookings,
       totalNights,
       avgBookingValue,
+      rentalRevenuePerBooking,
+      servicesRevenuePerBooking,
+      rentalTakeRate,
+      servicesTakeRate,
       currentUsers,
       avgNPS,
       totalMarketingSpend,
@@ -288,6 +314,10 @@ export default function InvestorDashboard() {
         bookings: calculateGrowth(totalBookings, prevTotalBookings),
         nights: calculateGrowth(totalNights, prevTotalNights),
         avgBookingValue: calculateGrowth(avgBookingValue, prevAvgBookingValue),
+        rentalRevenuePerBooking: calculateGrowth(rentalRevenuePerBooking, prevRentalRevenuePerBooking),
+        servicesRevenuePerBooking: calculateGrowth(servicesRevenuePerBooking, prevServicesRevenuePerBooking),
+        rentalTakeRate: rentalTakeRate - prevRentalTakeRate,
+        servicesTakeRate: servicesTakeRate - prevServicesTakeRate,
         users: calculateGrowth(currentUsers, prevUsers),
         nps: calculateGrowth(avgNPS, prevAvgNPS),
         marketingEfficiency: calculateGrowth(marketingEfficiency, prevMarketingEfficiency),
@@ -534,7 +564,7 @@ export default function InvestorDashboard() {
           <>
             <div className="mb-8">
               <h2 className="text-xl font-bold text-slate-900 mb-4">Financial Performance</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <KPICard
                   title="Total GMV"
                   value={`$${metrics.totalGMV.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
@@ -558,13 +588,54 @@ export default function InvestorDashboard() {
                   icon={<TrendingUp className="w-6 h-6" />}
                   color="purple"
                 />
-                
+              </div>
+            </div>
+
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Revenue Breakdown</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
                 <KPICard
                   title="Avg Booking Value"
                   value={`$${metrics.avgBookingValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                   growth={metrics.growth.avgBookingValue}
                   icon={<Target className="w-6 h-6" />}
                   color="indigo"
+                />
+                
+                <KPICard
+                  title="Rental Revenue/Booking"
+                  value={`$${metrics.rentalRevenuePerBooking.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.rentalRevenuePerBooking}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="blue"
+                  subtitle="Basic villa bookings"
+                />
+                
+                <KPICard
+                  title="Services Revenue/Booking"
+                  value={`$${metrics.servicesRevenuePerBooking.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.servicesRevenuePerBooking}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="purple"
+                  subtitle="Concierge & add-ons"
+                />
+                
+                <KPICard
+                  title="Rental Take Rate"
+                  value={`${metrics.rentalTakeRate.toFixed(1)}%`}
+                  growth={metrics.growth.rentalTakeRate}
+                  icon={<Percent className="w-6 h-6" />}
+                  color="green"
+                  isPercentage={true}
+                />
+                
+                <KPICard
+                  title="Services Take Rate"
+                  value={`${metrics.servicesTakeRate.toFixed(1)}%`}
+                  growth={metrics.growth.servicesTakeRate}
+                  icon={<Percent className="w-6 h-6" />}
+                  color="orange"
+                  isPercentage={true}
                 />
               </div>
             </div>
