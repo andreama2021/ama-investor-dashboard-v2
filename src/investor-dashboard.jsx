@@ -13,6 +13,37 @@ const CONFIG = {
 };
 
 // ============================================
+// HELPER FUNCTION - LINEAR REGRESSION
+// ============================================
+const calculateTrendline = (data, dataKey) => {
+  if (!data || data.length === 0) return [];
+  
+  const validData = data.filter(item => item[dataKey] !== null && item[dataKey] !== undefined);
+  const n = validData.length;
+  
+  if (n === 0) return [];
+  
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+  
+  validData.forEach((item, index) => {
+    const x = index;
+    const y = item[dataKey];
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+  });
+  
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+  
+  return data.map((item, index) => ({
+    ...item,
+    [`${dataKey}_trend`]: slope * index + intercept
+  }));
+};
+
+// ============================================
 // MAIN APP COMPONENT
 // ============================================
 export default function InvestorDashboard() {
@@ -238,7 +269,6 @@ export default function InvestorDashboard() {
     const totalNights = current.reduce((sum, item) => sum + item.nights, 0);
     const avgBookingValue = current.reduce((sum, item) => sum + item.avgBookingValue, 0) / current.length;
     
-    // New metrics
     const rentalRevenuePerBooking = totalBookings > 0 ? totalRevenueRentals / totalBookings : 0;
     const servicesRevenuePerBooking = totalBookings > 0 ? totalRevenueServices / totalBookings : 0;
     const rentalTakeRate = totalGMVRentals > 0 ? (totalRevenueRentals / totalGMVRentals) * 100 : 0;
@@ -259,7 +289,6 @@ export default function InvestorDashboard() {
     const netBurn = avgMonthlyMarketing - avgMonthlyRevenue;
     const runway = netBurn > 0 ? currentCash / netBurn : 999;
     
-    // Previous period calculations
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
     const prevTotalGMVRentals = previous.reduce((sum, item) => sum + item.gmvRentals, 0);
     const prevTotalGMVServices = previous.reduce((sum, item) => sum + item.gmvServices, 0);
@@ -328,7 +357,6 @@ export default function InvestorDashboard() {
     };
   };
 
-  // LOGIN SCREEN
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
@@ -375,9 +403,17 @@ export default function InvestorDashboard() {
     );
   }
 
-  // MAIN DASHBOARD
   const metrics = data ? calculateMetrics() : null;
   const { current: chartData } = data ? getFilteredData() : { current: [] };
+  
+  // Calculate trendlines for all charts
+  const gmvTrendData = calculateTrendline(chartData, 'gmvTotal');
+  const revenueTrendData = calculateTrendline(chartData, 'revenueTotal');
+  const propertiesTrendData = calculateTrendline(chartData, 'properties');
+  const bookingsTrendData = calculateTrendline(chartData, 'bookings');
+  const usersTrendData = calculateTrendline(chartData, 'users');
+  const ttmTrendData = calculateTrendline(chartData, 'ttmRevenue');
+  const npsTrendData = calculateTrendline(chartData, 'nps');
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -751,7 +787,7 @@ export default function InvestorDashboard() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">GMV Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData}>
+                  <AreaChart data={gmvTrendData}>
                     <defs>
                       <linearGradient id="colorGMV" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
@@ -766,6 +802,7 @@ export default function InvestorDashboard() {
                       formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="gmvTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorGMV)" strokeWidth={2} />
+                    <Line type="monotone" dataKey="gmvTotal_trend" stroke="#1e40af" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -773,7 +810,7 @@ export default function InvestorDashboard() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Revenue Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData}>
+                  <AreaChart data={revenueTrendData}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
@@ -788,6 +825,7 @@ export default function InvestorDashboard() {
                       formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
+                    <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -823,7 +861,7 @@ export default function InvestorDashboard() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Properties Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
+                  <LineChart data={propertiesTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="date" stroke="#64748b" />
                     <YAxis stroke="#64748b" />
@@ -831,6 +869,7 @@ export default function InvestorDashboard() {
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                     />
                     <Line type="monotone" dataKey="properties" stroke="#f97316" strokeWidth={3} dot={{ fill: '#f97316', r: 5 }} name="Properties" />
+                    <Line type="monotone" dataKey="properties_trend" stroke="#c2410c" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -838,7 +877,7 @@ export default function InvestorDashboard() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Bookings & Users</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
+                  <LineChart data={bookingsTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="date" stroke="#64748b" />
                     <YAxis yAxisId="left" stroke="#64748b" />
@@ -848,6 +887,7 @@ export default function InvestorDashboard() {
                     />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} name="Bookings" />
+                    <Line yAxisId="left" type="monotone" dataKey="bookings_trend" stroke="#6b21a8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Bookings Trend" />
                     <Line yAxisId="right" type="monotone" dataKey="users" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b' }} name="Users" />
                   </LineChart>
                 </ResponsiveContainer>
@@ -856,7 +896,7 @@ export default function InvestorDashboard() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">Trailing 12-Month Revenue</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={chartData}>
+                  <AreaChart data={ttmTrendData}>
                     <defs>
                       <linearGradient id="colorTTM" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -871,6 +911,7 @@ export default function InvestorDashboard() {
                       formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} />
+                    <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -896,14 +937,15 @@ export default function InvestorDashboard() {
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <h3 className="text-lg font-semibold text-slate-900 mb-4">NPS Score Trend</h3>
                 <ResponsiveContainer width="100%" height={300}>
-                  <LineChart data={chartData}>
+                  <LineChart data={npsTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="date" stroke="#64748b" />
                     <YAxis stroke="#64748b" domain={[0, 100]} />
                     <Tooltip 
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                     />
-                    <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={3} dot={{ fill: '#eab308', r: 5 }} />
+                    <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={3} dot={{ fill: '#eab308', r: 5 }} name="NPS Score" />
+                    <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
