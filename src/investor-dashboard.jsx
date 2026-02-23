@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target, Home, Percent } from 'lucide-react';
  
 // ============================================
@@ -814,7 +814,7 @@ export default function InvestorDashboard() {
                   </label>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={gmvTrendData}>
+                  <ComposedChart data={gmvTrendData}>
                     <defs>
                       <linearGradient id="colorGMV" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
@@ -832,7 +832,7 @@ export default function InvestorDashboard() {
                     {showTrendlines.gmv && (
                       <Line type="monotone" dataKey="gmvTotal_trend" stroke="#1e40af" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                     )}
-                  </AreaChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
@@ -850,7 +850,7 @@ export default function InvestorDashboard() {
                   </label>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={revenueTrendData}>
+                  <ComposedChart data={revenueTrendData}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
@@ -868,7 +868,7 @@ export default function InvestorDashboard() {
                     {showTrendlines.revenue && (
                       <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                     )}
-                  </AreaChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
@@ -975,7 +975,7 @@ export default function InvestorDashboard() {
                   </label>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={ttmTrendData}>
+                  <ComposedChart data={ttmTrendData}>
                     <defs>
                       <linearGradient id="colorTTM" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
@@ -993,7 +993,7 @@ export default function InvestorDashboard() {
                     {showTrendlines.ttm && (
                       <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                     )}
-                  </AreaChart>
+                  </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
