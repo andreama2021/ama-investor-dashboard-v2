@@ -18,10 +18,10 @@ const CONFIG = {
 const calculateTrendline = (data, dataKey) => {
   if (!data || data.length === 0) return [];
   
-  const validData = data.filter(item => item[dataKey] !== null && item[dataKey] !== undefined);
+  const validData = data.filter(item => item[dataKey] !== null && item[dataKey] !== undefined && !isNaN(item[dataKey]));
   const n = validData.length;
   
-  if (n === 0) return [];
+  if (n === 0) return data;
   
   let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
   
@@ -57,6 +57,23 @@ export default function InvestorDashboard() {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+  
+  // Trendline toggles for each chart
+  const [showTrendlines, setShowTrendlines] = useState({
+    gmv: false,
+    revenue: false,
+    properties: false,
+    bookings: false,
+    ttm: false,
+    nps: false
+  });
+
+  const toggleTrendline = (chartName) => {
+    setShowTrendlines(prev => ({
+      ...prev,
+      [chartName]: !prev[chartName]
+    }));
+  };
 
   useEffect(() => {
     const auth = sessionStorage.getItem('dashboard_auth');
@@ -405,13 +422,12 @@ export default function InvestorDashboard() {
 
   const metrics = data ? calculateMetrics() : null;
   const { current: chartData } = data ? getFilteredData() : { current: [] };
-  
+
   // Calculate trendlines for all charts
   const gmvTrendData = calculateTrendline(chartData, 'gmvTotal');
   const revenueTrendData = calculateTrendline(chartData, 'revenueTotal');
   const propertiesTrendData = calculateTrendline(chartData, 'properties');
   const bookingsTrendData = calculateTrendline(chartData, 'bookings');
-  const usersTrendData = calculateTrendline(chartData, 'users');
   const ttmTrendData = calculateTrendline(chartData, 'ttmRevenue');
   const npsTrendData = calculateTrendline(chartData, 'nps');
 
@@ -785,7 +801,18 @@ export default function InvestorDashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">GMV Trend</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">GMV Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.gmv}
+                      onChange={() => toggleTrendline('gmv')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={gmvTrendData}>
                     <defs>
@@ -802,13 +829,26 @@ export default function InvestorDashboard() {
                       formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="gmvTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorGMV)" strokeWidth={2} />
-                    <Line type="monotone" dataKey="gmvTotal_trend" stroke="#1e40af" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    {showTrendlines.gmv && (
+                      <Line type="monotone" dataKey="gmvTotal_trend" stroke="#1e40af" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Revenue Trend</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Revenue Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.revenue}
+                      onChange={() => toggleTrendline('revenue')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={revenueTrendData}>
                     <defs>
@@ -825,7 +865,9 @@ export default function InvestorDashboard() {
                       formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
-                    <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    {showTrendlines.revenue && (
+                      <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -859,7 +901,18 @@ export default function InvestorDashboard() {
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Properties Trend</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Properties Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.properties}
+                      onChange={() => toggleTrendline('properties')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={propertiesTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -869,13 +922,26 @@ export default function InvestorDashboard() {
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                     />
                     <Line type="monotone" dataKey="properties" stroke="#f97316" strokeWidth={3} dot={{ fill: '#f97316', r: 5 }} name="Properties" />
-                    <Line type="monotone" dataKey="properties_trend" stroke="#c2410c" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    {showTrendlines.properties && (
+                      <Line type="monotone" dataKey="properties_trend" stroke="#c2410c" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Bookings & Users</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Bookings & Users</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.bookings}
+                      onChange={() => toggleTrendline('bookings')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={bookingsTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -887,14 +953,27 @@ export default function InvestorDashboard() {
                     />
                     <Legend />
                     <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} name="Bookings" />
-                    <Line yAxisId="left" type="monotone" dataKey="bookings_trend" stroke="#6b21a8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Bookings Trend" />
+                    {showTrendlines.bookings && (
+                      <Line yAxisId="left" type="monotone" dataKey="bookings_trend" stroke="#6b21a8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Bookings Trend" />
+                    )}
                     <Line yAxisId="right" type="monotone" dataKey="users" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b' }} name="Users" />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Trailing 12-Month Revenue</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Trailing 12-Month Revenue</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.ttm}
+                      onChange={() => toggleTrendline('ttm')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
                 <ResponsiveContainer width="100%" height={300}>
                   <AreaChart data={ttmTrendData}>
                     <defs>
@@ -911,7 +990,9 @@ export default function InvestorDashboard() {
                       formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
                     />
                     <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} />
-                    <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    {showTrendlines.ttm && (
+                      <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
@@ -935,7 +1016,18 @@ export default function InvestorDashboard() {
               </div>
 
               <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">NPS Score Trend</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">NPS Score Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.nps}
+                      onChange={() => toggleTrendline('nps')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
                 <ResponsiveContainer width="100%" height={300}>
                   <LineChart data={npsTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
@@ -945,7 +1037,9 @@ export default function InvestorDashboard() {
                       contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
                     />
                     <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={3} dot={{ fill: '#eab308', r: 5 }} name="NPS Score" />
-                    <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    {showTrendlines.nps && (
+                      <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
