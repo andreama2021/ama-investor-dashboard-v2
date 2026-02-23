@@ -8,7 +8,7 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
-  SHEET_RANGE: 'Sheet1!A1:R1000',
+  SHEET_RANGE: 'Sheet1!A1:W1000',
   ACCESS_PIN: '2026'
 };
 
@@ -65,7 +65,9 @@ export default function InvestorDashboard() {
     properties: false,
     bookings: false,
     ttm: false,
-    nps: false
+    nps: false,
+    cac: false,
+    ltv: false
   });
 
   const toggleTrendline = (chartName) => {
@@ -151,7 +153,12 @@ export default function InvestorDashboard() {
       ttmRevenue: parseFloat(row[14]) || 0,
       gmvEU: parseFloat(row[15]) || 0,
       gmvOutsideEU: parseFloat(row[16]) || 0,
-      properties: parseInt(row[17]) || 0
+      properties: parseInt(row[17]) || 0,
+      cac: parseFloat(row[18]) || 0,
+      returningRate: parseFloat(row[19]) || 0,
+      returning3Plus: parseFloat(row[20]) || 0,
+      avgBookingsPerCustomer: parseFloat(row[21]) || 0,
+      grossMargin: parseFloat(row[22]) || 0
     })).filter(item => item.date);
   };
 
@@ -272,6 +279,10 @@ export default function InvestorDashboard() {
         avgGmvEU: 0,
         avgGmvOutsideEU: 0,
         currentProperties: 0,
+        avgCAC: 0,
+        avgLTV: 0,
+        ltvCacRatio: 0,
+        paybackPeriod: 0,
         growth: {}
       };
     }
@@ -300,6 +311,19 @@ export default function InvestorDashboard() {
     const avgGmvEU = current.reduce((sum, item) => sum + item.gmvEU, 0) / current.length;
     const avgGmvOutsideEU = current.reduce((sum, item) => sum + item.gmvOutsideEU, 0) / current.length;
     const currentProperties = current[current.length - 1]?.properties || 0;
+    const avgCAC = current.reduce((sum, item) => sum + item.cac, 0) / current.length;
+    
+    // LTV Calculation
+    const avgBookingsPerCustomer = current.reduce((sum, item) => sum + item.avgBookingsPerCustomer, 0) / current.length;
+    const avgGrossMargin = current.reduce((sum, item) => sum + item.grossMargin, 0) / current.length;
+    const avgLTV = avgBookingValue * avgGrossMargin * avgBookingsPerCustomer;
+    
+    // LTV/CAC Ratio
+    const ltvCacRatio = avgCAC > 0 ? avgLTV / avgCAC : 0;
+    
+    // Payback Period (in number of bookings)
+    const grossProfitPerBooking = avgBookingValue * avgGrossMargin;
+    const paybackPeriod = grossProfitPerBooking > 0 ? avgCAC / grossProfitPerBooking : 0;
     
     const avgMonthlyRevenue = totalRevenue / current.length;
     const avgMonthlyMarketing = totalMarketingSpend / current.length;
@@ -328,6 +352,14 @@ export default function InvestorDashboard() {
     const prevAvgGmvEU = previous.length > 0 ? previous.reduce((sum, item) => sum + item.gmvEU, 0) / previous.length : 0;
     const prevAvgGmvOutsideEU = previous.length > 0 ? previous.reduce((sum, item) => sum + item.gmvOutsideEU, 0) / previous.length : 0;
     const prevProperties = previous[previous.length - 1]?.properties || 0;
+    const prevAvgCAC = previous.length > 0 ? previous.reduce((sum, item) => sum + item.cac, 0) / previous.length : 0;
+    
+    const prevAvgBookingsPerCustomer = previous.length > 0 ? previous.reduce((sum, item) => sum + item.avgBookingsPerCustomer, 0) / previous.length : 0;
+    const prevAvgGrossMargin = previous.length > 0 ? previous.reduce((sum, item) => sum + item.grossMargin, 0) / previous.length : 0;
+    const prevAvgLTV = prevAvgBookingValue * prevAvgGrossMargin * prevAvgBookingsPerCustomer;
+    const prevLtvCacRatio = prevAvgCAC > 0 ? prevAvgLTV / prevAvgCAC : 0;
+    const prevGrossProfitPerBooking = prevAvgBookingValue * prevAvgGrossMargin;
+    const prevPaybackPeriod = prevGrossProfitPerBooking > 0 ? prevAvgCAC / prevGrossProfitPerBooking : 0;
     
     const calculateGrowth = (current, previous) => {
       if (previous === 0) return current > 0 ? 100 : 0;
@@ -354,6 +386,10 @@ export default function InvestorDashboard() {
       avgGmvEU,
       avgGmvOutsideEU,
       currentProperties,
+      avgCAC,
+      avgLTV,
+      ltvCacRatio,
+      paybackPeriod,
       growth: {
         gmv: calculateGrowth(totalGMV, prevTotalGMV),
         revenue: calculateGrowth(totalRevenue, prevTotalRevenue),
@@ -369,7 +405,11 @@ export default function InvestorDashboard() {
         marketingEfficiency: calculateGrowth(marketingEfficiency, prevMarketingEfficiency),
         gmvEU: avgGmvEU - prevAvgGmvEU,
         gmvOutsideEU: avgGmvOutsideEU - prevAvgGmvOutsideEU,
-        properties: calculateGrowth(currentProperties, prevProperties)
+        properties: calculateGrowth(currentProperties, prevProperties),
+        cac: calculateGrowth(avgCAC, prevAvgCAC),
+        ltv: calculateGrowth(avgLTV, prevAvgLTV),
+        ltvCacRatio: calculateGrowth(ltvCacRatio, prevLtvCacRatio),
+        paybackPeriod: calculateGrowth(paybackPeriod, prevPaybackPeriod)
       }
     };
   };
@@ -430,6 +470,14 @@ export default function InvestorDashboard() {
   const bookingsTrendData = calculateTrendline(chartData, 'bookings');
   const ttmTrendData = calculateTrendline(chartData, 'ttmRevenue');
   const npsTrendData = calculateTrendline(chartData, 'nps');
+  const cacTrendData = calculateTrendline(chartData, 'cac');
+  
+  // Calculate LTV for each row
+  const chartDataWithLTV = chartData.map(item => ({
+    ...item,
+    ltv: item.avgBookingValue * item.grossMargin * item.avgBookingsPerCustomer
+  }));
+  const ltvTrendData = calculateTrendline(chartDataWithLTV, 'ltv');
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -799,6 +847,47 @@ export default function InvestorDashboard() {
               </div>
             </div>
 
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">CAC & LTV</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <KPICard
+                  title="Customer Acquisition Cost"
+                  value={`$${metrics.avgCAC.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.cac}
+                  icon={<Users className="w-6 h-6" />}
+                  color="red"
+                  invertGrowth={true}
+                />
+                
+                <KPICard
+                  title="Lifetime Value"
+                  value={`$${metrics.avgLTV.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.ltv}
+                  icon={<TrendingUp className="w-6 h-6" />}
+                  color="green"
+                />
+                
+                <KPICard
+                  title="LTV / CAC Ratio"
+                  value={metrics.ltvCacRatio.toFixed(2)}
+                  growth={metrics.growth.ltvCacRatio}
+                  icon={<Target className="w-6 h-6" />}
+                  color="purple"
+                  subtitle="Target: >3.0"
+                />
+                
+                <KPICard
+                  title="Payback Period"
+                  value={`${metrics.paybackPeriod.toFixed(2)} bookings`}
+                  growth={metrics.growth.paybackPeriod}
+                  icon={<Calendar className="w-6 h-6" />}
+                  color="indigo"
+                  invertGrowth={true}
+                  subtitle="Bookings to recover CAC"
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
               <div className="bg-white rounded-xl shadow-sm p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -1039,6 +1128,66 @@ export default function InvestorDashboard() {
                     <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={3} dot={{ fill: '#eab308', r: 5 }} name="NPS Score" />
                     {showTrendlines.nps && (
                       <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">CAC Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.cac}
+                      onChange={() => toggleTrendline('cac')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={cacTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Line type="monotone" dataKey="cac" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 5 }} name="CAC" />
+                    {showTrendlines.cac && (
+                      <Line type="monotone" dataKey="cac_trend" stroke="#991b1b" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">LTV Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.ltv}
+                      onChange={() => toggleTrendline('ltv')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={ltvTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Line type="monotone" dataKey="ltv" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 5 }} name="LTV" />
+                    {showTrendlines.ltv && (
+                      <Line type="monotone" dataKey="ltv_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
                     )}
                   </LineChart>
                 </ResponsiveContainer>
