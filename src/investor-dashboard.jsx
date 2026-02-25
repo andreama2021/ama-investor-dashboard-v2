@@ -8,7 +8,7 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
-  SHEET_RANGE: 'Sheet1!A1:W1000',
+  SHEET_RANGE: 'Sheet1!A1:U1000',
   ACCESS_PIN: '2026'
 };
 
@@ -155,10 +155,8 @@ export default function InvestorDashboard() {
       gmvOutsideEU: parseFloat(row[16]) || 0,
       properties: parseInt(row[17]) || 0,
       cac: parseFloat(row[18]) || 0,
-      returningRate: parseFloat(row[19]) || 0,
-      returning3Plus: parseFloat(row[20]) || 0,
-      avgBookingsPerCustomer: parseFloat(row[21]) || 0,
-      grossMargin: parseFloat(row[22]) || 0
+      avgBookingsPerCustomer: parseFloat(row[19]) || 0,
+      grossMargin: parseFloat(row[20]) || 0
     })).filter(item => item.date);
   };
 
