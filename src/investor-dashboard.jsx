@@ -295,7 +295,9 @@ export default function InvestorDashboard() {
     const totalRevenueServices = current.reduce((sum, item) => sum + item.revenueServices, 0);
     const totalBookings = current.reduce((sum, item) => sum + item.bookings, 0);
     const totalNights = current.reduce((sum, item) => sum + item.nights, 0);
-    const avgBookingValue = current.reduce((sum, item) => sum + item.avgBookingValue, 0) / current.length;
+    
+    // FIX 1: Average Booking Value - Use total GMV / total bookings
+    const avgBookingValue = totalBookings > 0 ? totalGMV / totalBookings : 0;
     
     const rentalRevenuePerBooking = totalBookings > 0 ? totalRevenueRentals / totalBookings : 0;
     const servicesRevenuePerBooking = totalBookings > 0 ? totalRevenueServices / totalBookings : 0;
@@ -308,14 +310,24 @@ export default function InvestorDashboard() {
     const marketingEfficiency = totalMarketingSpend > 0 ? (totalRevenue / totalMarketingSpend) * 100 : 0;
     const currentCash = current[current.length - 1]?.cashPosition || 0;
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
-    const avgGmvEU = current.reduce((sum, item) => sum + item.gmvEU, 0) / current.length;
-    const avgGmvOutsideEU = current.reduce((sum, item) => sum + item.gmvOutsideEU, 0) / current.length;
+    
+    // FIX 2: GMV EU % - Use weighted average by GMV
+    const totalGMVEU = current.reduce((sum, item) => sum + (item.gmvTotal * item.gmvEU / 100), 0);
+    const avgGmvEU = totalGMV > 0 ? (totalGMVEU / totalGMV) * 100 : 0;
+    const avgGmvOutsideEU = 100 - avgGmvEU;
+    
     const currentProperties = current[current.length - 1]?.properties || 0;
     const avgCAC = current.reduce((sum, item) => sum + item.cac, 0) / current.length;
     
+    // FIX 3: Use most recent month's value for Avg Bookings Per Customer
+    const avgBookingsPerCustomer = current[current.length - 1]?.avgBookingsPerCustomer || 0;
+    
+    // FIX 4: Gross Margin - Use revenue-weighted average
+    const avgGrossMargin = totalRevenue > 0 
+      ? current.reduce((sum, item) => sum + (item.revenueTotal * item.grossMargin), 0) / totalRevenue 
+      : 0;
+    
     // LTV Calculation
-    const avgBookingsPerCustomer = current.reduce((sum, item) => sum + item.avgBookingsPerCustomer, 0) / current.length;
-    const avgGrossMargin = current.reduce((sum, item) => sum + item.grossMargin, 0) / current.length;
     const avgLTV = avgBookingValue * avgGrossMargin * avgBookingsPerCustomer;
     
     // LTV/CAC Ratio
@@ -330,6 +342,7 @@ export default function InvestorDashboard() {
     const netBurn = avgMonthlyMarketing - avgMonthlyRevenue;
     const runway = netBurn > 0 ? currentCash / netBurn : 999;
     
+    // PREVIOUS PERIOD - Apply same fixes
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
     const prevTotalGMVRentals = previous.reduce((sum, item) => sum + item.gmvRentals, 0);
     const prevTotalGMVServices = previous.reduce((sum, item) => sum + item.gmvServices, 0);
@@ -338,7 +351,9 @@ export default function InvestorDashboard() {
     const prevTotalRevenueServices = previous.reduce((sum, item) => sum + item.revenueServices, 0);
     const prevTotalBookings = previous.reduce((sum, item) => sum + item.bookings, 0);
     const prevTotalNights = previous.reduce((sum, item) => sum + item.nights, 0);
-    const prevAvgBookingValue = previous.length > 0 ? previous.reduce((sum, item) => sum + item.avgBookingValue, 0) / previous.length : 0;
+    
+    // FIX 1 (Previous): Average Booking Value
+    const prevAvgBookingValue = prevTotalBookings > 0 ? prevTotalGMV / prevTotalBookings : 0;
     
     const prevRentalRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueRentals / prevTotalBookings : 0;
     const prevServicesRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueServices / prevTotalBookings : 0;
@@ -349,13 +364,23 @@ export default function InvestorDashboard() {
     const prevAvgNPS = previous.length > 0 ? previous.reduce((sum, item) => sum + item.nps, 0) / previous.length : 0;
     const prevTotalMarketingSpend = previous.reduce((sum, item) => sum + item.marketingSpend, 0);
     const prevMarketingEfficiency = prevTotalMarketingSpend > 0 ? (prevTotalRevenue / prevTotalMarketingSpend) * 100 : 0;
-    const prevAvgGmvEU = previous.length > 0 ? previous.reduce((sum, item) => sum + item.gmvEU, 0) / previous.length : 0;
-    const prevAvgGmvOutsideEU = previous.length > 0 ? previous.reduce((sum, item) => sum + item.gmvOutsideEU, 0) / previous.length : 0;
+    
+    // FIX 2 (Previous): GMV EU %
+    const prevTotalGMVEU = previous.length > 0 ? previous.reduce((sum, item) => sum + (item.gmvTotal * item.gmvEU / 100), 0) : 0;
+    const prevAvgGmvEU = prevTotalGMV > 0 ? (prevTotalGMVEU / prevTotalGMV) * 100 : 0;
+    const prevAvgGmvOutsideEU = 100 - prevAvgGmvEU;
+    
     const prevProperties = previous[previous.length - 1]?.properties || 0;
     const prevAvgCAC = previous.length > 0 ? previous.reduce((sum, item) => sum + item.cac, 0) / previous.length : 0;
     
-    const prevAvgBookingsPerCustomer = previous.length > 0 ? previous.reduce((sum, item) => sum + item.avgBookingsPerCustomer, 0) / previous.length : 0;
-    const prevAvgGrossMargin = previous.length > 0 ? previous.reduce((sum, item) => sum + item.grossMargin, 0) / previous.length : 0;
+    // FIX 3 (Previous): Use most recent month's value
+    const prevAvgBookingsPerCustomer = previous[previous.length - 1]?.avgBookingsPerCustomer || 0;
+    
+    // FIX 4 (Previous): Gross Margin
+    const prevAvgGrossMargin = prevTotalRevenue > 0 
+      ? previous.reduce((sum, item) => sum + (item.revenueTotal * item.grossMargin), 0) / prevTotalRevenue 
+      : 0;
+    
     const prevAvgLTV = prevAvgBookingValue * prevAvgGrossMargin * prevAvgBookingsPerCustomer;
     const prevLtvCacRatio = prevAvgCAC > 0 ? prevAvgLTV / prevAvgCAC : 0;
     const prevGrossProfitPerBooking = prevAvgBookingValue * prevAvgGrossMargin;
