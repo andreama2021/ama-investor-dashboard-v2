@@ -8,7 +8,7 @@ import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, St
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
-  SHEET_RANGE: 'Sheet1!A1:U1000',
+  SHEET_RANGE: 'Sheet1!A1:V1000',
   ACCESS_PIN: '2026'
 };
 
@@ -156,7 +156,8 @@ export default function InvestorDashboard() {
       properties: parseInt(row[17]) || 0,
       cac: parseFloat(row[18]) || 0,
       avgBookingsPerCustomer: parseFloat(row[19]) || 0,
-      grossMargin: parseFloat(row[20]) || 0
+      grossMargin: parseFloat(row[20]) || 0,
+      npsCount: parseInt(row[21]) || 0
     })).filter(item => item.date);
   };
 
@@ -303,7 +304,12 @@ export default function InvestorDashboard() {
     const servicesTakeRate = totalGMVServices > 0 ? (totalRevenueServices / totalGMVServices) * 100 : 0;
     
     const currentUsers = current[current.length - 1]?.users || 0;
-    const avgNPS = current.reduce((sum, item) => sum + item.nps, 0) / current.length;
+    
+    // FIX: NPS - Use weighted average by response count
+    const totalNPSResponses = current.reduce((sum, item) => sum + item.npsCount, 0);
+    const weightedNPSSum = current.reduce((sum, item) => sum + (item.nps * item.npsCount), 0);
+    const avgNPS = totalNPSResponses > 0 ? weightedNPSSum / totalNPSResponses : 0;
+    
     const totalMarketingSpend = current.reduce((sum, item) => sum + item.marketingSpend, 0);
     const marketingEfficiency = totalMarketingSpend > 0 ? (totalRevenue / totalMarketingSpend) * 100 : 0;
     const currentCash = current[current.length - 1]?.cashPosition || 0;
@@ -359,7 +365,12 @@ export default function InvestorDashboard() {
     const prevServicesTakeRate = prevTotalGMVServices > 0 ? (prevTotalRevenueServices / prevTotalGMVServices) * 100 : 0;
     
     const prevUsers = previous[previous.length - 1]?.users || 0;
-    const prevAvgNPS = previous.length > 0 ? previous.reduce((sum, item) => sum + item.nps, 0) / previous.length : 0;
+    
+    // FIX (Previous): NPS - Use weighted average
+    const prevTotalNPSResponses = previous.reduce((sum, item) => sum + item.npsCount, 0);
+    const prevWeightedNPSSum = previous.reduce((sum, item) => sum + (item.nps * item.npsCount), 0);
+    const prevAvgNPS = prevTotalNPSResponses > 0 ? prevWeightedNPSSum / prevTotalNPSResponses : 0;
+    
     const prevTotalMarketingSpend = previous.reduce((sum, item) => sum + item.marketingSpend, 0);
     const prevMarketingEfficiency = prevTotalMarketingSpend > 0 ? (prevTotalRevenue / prevTotalMarketingSpend) * 100 : 0;
     
