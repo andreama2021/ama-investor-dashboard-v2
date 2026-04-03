@@ -341,10 +341,20 @@ export default function InvestorDashboard() {
     const grossProfitPerBooking = avgBookingValue * avgGrossMargin;
     const paybackPeriod = grossProfitPerBooking > 0 ? avgCAC / grossProfitPerBooking : 0;
     
-    const avgMonthlyRevenue = totalRevenue / current.length;
-    const avgMonthlyMarketing = totalMarketingSpend / current.length;
-    const netBurn = avgMonthlyMarketing - avgMonthlyRevenue;
-    const runway = netBurn > 0 ? currentCash / netBurn : 999;
+    // Hard-coded runway: months until end of October 2026
+    let runway;
+    if (current.length > 0) {
+      const lastDate = new Date(current[current.length - 1].date);
+      const endOfRunway = new Date(2026, 9, 31); // October 31, 2026
+      
+      // Calculate months difference (inclusive of both start and end months)
+      const monthsDiff = (endOfRunway.getFullYear() - lastDate.getFullYear()) * 12 + 
+                         (endOfRunway.getMonth() - lastDate.getMonth()) + 1;
+      
+      runway = monthsDiff > 0 ? monthsDiff : 0;
+    } else {
+      runway = 0;
+    }
     
     // PREVIOUS PERIOD - Apply same fixes
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
@@ -872,11 +882,11 @@ export default function InvestorDashboard() {
                 
                 <KPICard
                   title="Runway"
-                  value={metrics.runway >= 999 ? '∞' : `${metrics.runway.toFixed(1)}m`}
+                  value={`${metrics.runway.toFixed(0)}m`}
                   growth={null}
                   icon={<Calendar className="w-6 h-6" />}
                   color="blue"
-                  subtitle="Months of operation"
+                  subtitle="Until end of October 2026"
                 />
               </div>
             </div>
