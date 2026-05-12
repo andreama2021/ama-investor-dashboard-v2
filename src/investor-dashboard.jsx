@@ -313,7 +313,10 @@ export default function InvestorDashboard() {
     const totalMarketingSpend = current.reduce((sum, item) => sum + item.marketingSpend, 0);
     const marketingEfficiency = totalMarketingSpend > 0 ? (totalRevenue / totalMarketingSpend) * 100 : 0;
     const currentCash = current[current.length - 1]?.cashPosition || 0;
-    const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
+const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
+
+// Get previous period's TTM
+const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
     
     // FIX 2: GMV EU % - Use weighted average by GMV
     const totalGMVEU = current.reduce((sum, item) => sum + (item.gmvTotal * item.gmvEU / 100), 0);
@@ -453,7 +456,8 @@ export default function InvestorDashboard() {
         cac: calculateGrowth(avgCAC, prevAvgCAC),
         ltv: calculateGrowth(avgLTV, prevAvgLTV),
         ltvCacRatio: calculateGrowth(ltvCacRatio, prevLtvCacRatio),
-        paybackPeriod: calculateGrowth(paybackPeriod, prevPaybackPeriod)
+        paybackPeriod: calculateGrowth(paybackPeriod, prevPaybackPeriod),
+        ttm: calculateGrowth(latestTTM, prevLatestTTM)
       }
     };
   };
@@ -726,12 +730,12 @@ export default function InvestorDashboard() {
                 />
                 
                 <KPICard
-                  title="TTM Revenue"
-                  value={`$${metrics.latestTTM.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={null}
-                  icon={<TrendingUp className="w-6 h-6" />}
-                  color="purple"
-                />
+  title="TTM Revenue"
+  value={`$${metrics.latestTTM.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+  growth={metrics.growth.ttm}
+  icon={<TrendingUp className="w-6 h-6" />}
+  color="purple"
+/>
               </div>
             </div>
 
