@@ -348,7 +348,7 @@ const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
     let runway;
     if (current.length > 0) {
       const lastDate = new Date(current[current.length - 1].date);
-      const endOfRunway = new Date(2026, 9, 31); // October 31, 2026
+      const endOfRunway = new Date(2026, 11, 31); // December 31, 2026
       
       // Calculate months difference (inclusive of both start and end months)
       const monthsDiff = (endOfRunway.getFullYear() - lastDate.getFullYear()) * 12 + 
@@ -885,13 +885,13 @@ const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
                 />
                 
                 <KPICard
-                  title="Runway"
-                  value={`${metrics.runway.toFixed(0)}m`}
-                  growth={null}
-                  icon={<Calendar className="w-6 h-6" />}
-                  color="blue"
-                  subtitle="Until end of October 2026"
-                />
+  title="Runway"
+  value={`${metrics.runway.toFixed(0)}m`}
+  growth={null}
+  icon={<Calendar className="w-6 h-6" />}
+  color="blue"
+  subtitle="Until end of December 2026"
+/>
               </div>
             </div>
 
