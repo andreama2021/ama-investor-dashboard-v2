@@ -348,7 +348,7 @@ const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
     let runway;
     if (current.length > 0) {
       const lastDate = new Date(current[current.length - 1].date);
-      const endOfRunway = new Date(2026, 11, 31); // December 31, 2026
+      const endOfRunway = new Date(2028, 2, 31); // March 31, 2028
       
       // Calculate months difference (inclusive of both start and end months)
       const monthsDiff = (endOfRunway.getFullYear() - lastDate.getFullYear()) * 12 + 
@@ -890,7 +890,7 @@ const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
   growth={null}
   icon={<Calendar className="w-6 h-6" />}
   color="blue"
-  subtitle="Until end of December 2026"
+  subtitle="Until end of March 2028"
 />
               </div>
             </div>
