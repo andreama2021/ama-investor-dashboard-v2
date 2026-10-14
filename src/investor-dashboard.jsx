@@ -31,6 +31,18 @@ function Logo({ size = 40 }) {
 }
 
 // ============================================
+// NUMBER FORMATTING UTILITY
+// ============================================
+function formatNumber(num) {
+  if (num >= 1000000) {
+    return (num / 1000000).toFixed(2) + 'M';
+  } else if (num >= 1000) {
+    return (num / 1000).toFixed(0) + 'K';
+  }
+  return num.toLocaleString();
+}
+
+// ============================================
 // MAIN APP COMPONENT
 // ============================================
 export default function InvestorDashboard() {
@@ -40,9 +52,9 @@ export default function InvestorDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [period, setPeriod] = useState('90');
+  const [period, setPeriod] = useState('30');
   const [selectedYear, setSelectedYear] = useState('2026');
-  const [selectedQuarter, setSelectedQuarter] = useState('Q3');
+  const [selectedQuarter, setSelectedQuarter] = useState(null);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
 
@@ -133,7 +145,13 @@ export default function InvestorDashboard() {
     const now = new Date();
     let startDate, endDate, prevStartDate, prevEndDate;
 
-    if (period === 'custom' && customStartDate && customEndDate) {
+    // Handle Lifetime selection
+    if (selectedYear === 'Lifetime') {
+      startDate = new Date(data[0]?.date || '2023-01-01');
+      endDate = now;
+      prevStartDate = new Date('2000-01-01');
+      prevEndDate = startDate;
+    } else if (period === 'custom' && customStartDate && customEndDate) {
       startDate = new Date(customStartDate);
       endDate = new Date(customEndDate);
       const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
@@ -484,7 +502,7 @@ export default function InvestorDashboard() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <div style={{ fontSize: '12px', color: '#6b6b6b' }}>
-              2023 – 2026 · <strong>{selectedQuarter}</strong>
+              {selectedYear === 'Lifetime' ? 'Lifetime' : `2023 – ${selectedYear}`} · <strong>{selectedQuarter || 'Last Full Month'}</strong>
             </div>
             <button
               onClick={handleLogout}
@@ -551,7 +569,16 @@ export default function InvestorDashboard() {
                 {['2023', '2024', '2025', '2026', 'Lifetime'].map(year => (
                   <button
                     key={year}
-                    onClick={() => setSelectedYear(year)}
+                    onClick={() => {
+                      setSelectedYear(year);
+                      if (year === 'Lifetime') {
+                        setPeriod('lifetime');
+                        setSelectedQuarter(null);
+                      } else {
+                        setPeriod('30');
+                        setSelectedQuarter(null);
+                      }
+                    }}
                     style={{
                       padding: '8px 14px',
                       background: selectedYear === year ? '#A28D50' : 'transparent',
@@ -578,23 +605,28 @@ export default function InvestorDashboard() {
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                 {[
                   { value: '30', label: 'Last Full Month' },
-                  { value: '90', label: 'Q1', quarter: 'Q1' },
-                  { value: '90', label: 'Q2', quarter: 'Q2' },
-                  { value: '90', label: 'Q3', quarter: 'Q3' },
-                  { value: '90', label: 'Q4', quarter: 'Q4' },
+                  { value: 'Q1', label: 'Q1', quarter: 'Q1' },
+                  { value: 'Q2', label: 'Q2', quarter: 'Q2' },
+                  { value: 'Q3', label: 'Q3', quarter: 'Q3' },
+                  { value: 'Q4', label: 'Q4', quarter: 'Q4' },
                   { value: '365', label: 'Full Year' },
                   { value: 'custom', label: 'Custom Range' }
                 ].map(btn => (
                   <button
                     key={btn.label}
                     onClick={() => {
-                      setPeriod(btn.value);
-                      if (btn.quarter) setSelectedQuarter(btn.quarter);
+                      if (btn.quarter) {
+                        setPeriod('90');
+                        setSelectedQuarter(selectedQuarter === btn.quarter ? null : btn.quarter);
+                      } else {
+                        setPeriod(btn.value);
+                        setSelectedQuarter(null);
+                      }
                     }}
                     style={{
                       padding: '8px 14px',
-                      background: (period === btn.value || (btn.quarter && selectedQuarter === btn.quarter)) ? '#A28D50' : 'transparent',
-                      color: (period === btn.value || (btn.quarter && selectedQuarter === btn.quarter)) ? 'white' : '#6b6b6b',
+                      background: (btn.quarter && selectedQuarter === btn.quarter) || (period === btn.value && !btn.quarter) ? '#A28D50' : 'transparent',
+                      color: (btn.quarter && selectedQuarter === btn.quarter) || (period === btn.value && !btn.quarter) ? 'white' : '#6b6b6b',
                       border: '1px solid #d9d7ce',
                       borderRadius: '6px',
                       cursor: 'pointer',
@@ -696,17 +728,17 @@ export default function InvestorDashboard() {
             }}>
               <KPICard
                 title="Total GMV"
-                value={`$${(metrics.totalGMV / 1000000).toFixed(2)}M`}
+                value={`$${formatNumber(metrics.totalGMV)}`}
                 growth={metrics.growth.gmv}
               />
               <KPICard
                 title="Total Revenue"
-                value={`$${(metrics.totalRevenue / 1000).toFixed(0)}K`}
+                value={`$${formatNumber(metrics.totalRevenue)}`}
                 growth={metrics.growth.revenue}
               />
               <KPICard
                 title="TTM Revenue"
-                value={`$${(metrics.latestTTM / 1000000).toFixed(2)}M`}
+                value={`$${formatNumber(metrics.latestTTM)}`}
                 growth={metrics.growth.ttm}
               />
             </div>
@@ -723,17 +755,17 @@ export default function InvestorDashboard() {
             }}>
               <KPICard
                 title="Avg Booking Value"
-                value={`$${metrics.avgBookingValue.toFixed(0)}`}
+                value={`$${metrics.avgBookingValue.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
                 growth={metrics.growth.avgBookingValue}
               />
               <KPICard
                 title="Rental Revenue/Booking"
-                value={`$${metrics.rentalRevenuePerBooking.toFixed(0)}`}
+                value={`$${metrics.rentalRevenuePerBooking.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
                 growth={0}
               />
               <KPICard
                 title="Services Revenue/Booking"
-                value={`$${metrics.servicesRevenuePerBooking.toFixed(0)}`}
+                value={`$${metrics.servicesRevenuePerBooking.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
                 growth={0}
               />
               <KPICard
@@ -819,12 +851,12 @@ export default function InvestorDashboard() {
             }}>
               <KPICard
                 title="Customer Acquisition Cost"
-                value={`$${metrics.cac.toFixed(0)}`}
+                value={`$${metrics.cac.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
                 growth={0}
               />
               <KPICard
                 title="Lifetime Value"
-                value={`$${metrics.ltv.toFixed(0)}`}
+                value={`$${metrics.ltv.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
                 growth={metrics.growth.ltv}
               />
               <KPICard
@@ -851,7 +883,7 @@ export default function InvestorDashboard() {
             }}>
               <KPICard
                 title="Marketing Spend"
-                value={`$${(metrics.totalMarketingSpend / 1000).toFixed(0)}K`}
+                value={`$${formatNumber(metrics.totalMarketingSpend)}`}
                 growth={0}
               />
               <KPICard
@@ -861,7 +893,7 @@ export default function InvestorDashboard() {
               />
               <KPICard
                 title="Cash Position"
-                value={`$${(metrics.currentCash / 1000000).toFixed(2)}M`}
+                value={`$${formatNumber(metrics.currentCash)}`}
                 growth={0}
               />
               <KPICard
@@ -933,6 +965,118 @@ export default function InvestorDashboard() {
                     <YAxis stroke="#9a9a9a" />
                     <Tooltip content={<CustomTooltip dataKey="revenueTotal" />} />
                     <Area type="monotone" dataKey="revenueTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Bookings Trend */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  Bookings Trend
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#059669" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" />
+                    <Tooltip content={<CustomTooltip dataKey="bookings" />} />
+                    <Area type="monotone" dataKey="bookings" stroke="#059669" fillOpacity={1} fill="url(#colorBookings)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* User Growth */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  Total Users
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" />
+                    <Tooltip content={<CustomTooltip dataKey="users" />} />
+                    <Area type="monotone" dataKey="users" stroke="#7c3aed" fillOpacity={1} fill="url(#colorUsers)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* NPS Trend */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  NPS Score Trend
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorNPS" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" domain={[0, 100]} />
+                    <Tooltip content={<CustomTooltip dataKey="nps" />} />
+                    <Area type="monotone" dataKey="nps" stroke="#f59e0b" fillOpacity={1} fill="url(#colorNPS)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Marketing Spend Trend */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  Marketing Spend
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorMarketing" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ec4899" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" />
+                    <Tooltip content={<CustomTooltip dataKey="marketingSpend" />} />
+                    <Area type="monotone" dataKey="marketingSpend" stroke="#ec4899" fillOpacity={1} fill="url(#colorMarketing)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
