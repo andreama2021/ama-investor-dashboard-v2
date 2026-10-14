@@ -3,7 +3,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target, Home, Percent } from 'lucide-react';
 
 // ============================================
-// CONFIGURATION
+// CONFIGURATION - UPDATE THESE VALUES
 // ============================================
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
@@ -78,14 +78,6 @@ export default function InvestorDashboard() {
   };
 
   useEffect(() => {
-    let link = document.querySelector("link[rel='icon']");
-    if (!link) {
-      link = document.createElement('link');
-      link.rel = 'icon';
-      document.head.appendChild(link);
-    }
-    link.href = '/Logo_A_icon.jpg';
-
     const auth = sessionStorage.getItem('dashboard_auth');
     if (auth === 'true') {
       setIsAuthenticated(true);
@@ -369,8 +361,9 @@ export default function InvestorDashboard() {
     let runway;
     if (current.length > 0) {
       const lastDate = new Date(current[current.length - 1].date);
-      const endOfRunway = new Date(2028, 2, 31);
+      const endOfRunway = new Date(2028, 2, 31); // March 31, 2028
 
+      // Calculate months difference
       const monthsDiff = (endOfRunway.getFullYear() - lastDate.getFullYear()) * 12 +
                          (endOfRunway.getMonth() - lastDate.getMonth()) + 1;
 
@@ -1308,3 +1301,4 @@ function KPICard({ title, value, growth, icon, color, invertGrowth = false, subt
     </div>
   );
 }
+
