@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area } from 'recharts';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts';
 
 // ============================================
-// CONFIGURATION - UPDATE THESE VALUES
+// CONFIGURATION
 // ============================================
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
@@ -11,9 +11,6 @@ const CONFIG = {
   ACCESS_PIN: '2026'
 };
 
-// ============================================
-// LOGO COMPONENT
-// ============================================
 function Logo({ size = 40 }) {
   return (
     <img
@@ -30,9 +27,6 @@ function Logo({ size = 40 }) {
   );
 }
 
-// ============================================
-// NUMBER FORMATTING UTILITY
-// ============================================
 function formatNumber(num) {
   if (num >= 1000000) {
     return (num / 1000000).toFixed(2) + 'M';
@@ -42,9 +36,6 @@ function formatNumber(num) {
   return num.toLocaleString();
 }
 
-// ============================================
-// MAIN APP COMPONENT
-// ============================================
 export default function InvestorDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -59,7 +50,6 @@ export default function InvestorDashboard() {
   const [customEndDate, setCustomEndDate] = useState('');
 
   useEffect(() => {
-    // Set favicon to Logo_A_icon.jpg
     let link = document.querySelector("link[rel='icon']");
     if (!link) {
       link = document.createElement('link');
@@ -68,7 +58,6 @@ export default function InvestorDashboard() {
     }
     link.href = '/Logo_A_icon.jpg';
 
-    // Check authentication
     const auth = sessionStorage.getItem('dashboard_auth');
     if (auth === 'true') {
       setIsAuthenticated(true);
@@ -117,11 +106,11 @@ export default function InvestorDashboard() {
 
   const parseSheetData = (rows) => {
     if (!rows || rows.length < 2) return null;
-    const headers = rows[0];
     const dataRows = rows.slice(1);
 
     return dataRows.map(row => ({
       date: row[0] || '',
+      month: row[0] ? row[0].substring(0, 7) : '', // YYYY-MM format
       gmvTotal: parseFloat(row[1]) || 0,
       gmvRentals: parseFloat(row[2]) || 0,
       gmvServices: parseFloat(row[3]) || 0,
@@ -145,12 +134,24 @@ export default function InvestorDashboard() {
     const now = new Date();
     let startDate, endDate, prevStartDate, prevEndDate;
 
-    // Handle Lifetime selection
     if (selectedYear === 'Lifetime') {
       startDate = new Date(data[0]?.date || '2023-01-01');
       endDate = now;
       prevStartDate = new Date('2000-01-01');
       prevEndDate = startDate;
+    } else if (period === '30') {
+      // Last full month: compare to same month a year ago
+      const lastDataPoint = data[data.length - 1];
+      const lastDate = new Date(lastDataPoint.date);
+      const lastMonth = lastDate.getMonth();
+      const lastYear = lastDate.getFullYear();
+
+      endDate = new Date(lastYear, lastMonth + 1, 0); // Last day of last month
+      startDate = new Date(lastYear, lastMonth, 1); // First day of last month
+
+      const prevYear = lastYear - 1;
+      prevEndDate = new Date(prevYear, lastMonth + 1, 0);
+      prevStartDate = new Date(prevYear, lastMonth, 1);
     } else if (period === 'custom' && customStartDate && customEndDate) {
       startDate = new Date(customStartDate);
       endDate = new Date(customEndDate);
@@ -206,20 +207,17 @@ export default function InvestorDashboard() {
     const currentCash = current[current.length - 1]?.cashPosition || 0;
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
 
-    // Runway calculation (hard-coded to March 31, 2028)
     const endOfRunway = new Date(2028, 2, 31);
     const now = new Date(current[current.length - 1]?.date || new Date());
     const monthsDiff = (endOfRunway - now) / (1000 * 60 * 60 * 24 * 30.44);
     const runway = Math.max(0, monthsDiff);
 
-    // Geographic and operational metrics (calculated from available data)
     const gmvRentals = current.reduce((sum, item) => sum + item.gmvRentals, 0);
     const gmvServices = current.reduce((sum, item) => sum + item.gmvServices, 0);
-    const gmvEU = gmvRentals * 0.9; // Approximation: 90% from EU
-    const gmvOutsideEU = gmvRentals * 0.1; // Approximation: 10% outside EU
-    const liveProperties = Math.round(totalBookings / 15); // Approximation: ~15 bookings per property
+    const gmvEU = gmvRentals * 0.9;
+    const gmvOutsideEU = gmvRentals * 0.1;
+    const liveProperties = Math.round(totalBookings / 15);
 
-    // Revenue breakdown
     const revenueRentals = current.reduce((sum, item) => sum + item.revenueRentals, 0);
     const revenueServices = current.reduce((sum, item) => sum + item.revenueServices, 0);
     const rentalBookings = totalBookings * 0.85;
@@ -229,7 +227,6 @@ export default function InvestorDashboard() {
     const rentalTakeRate = gmvRentals > 0 ? (revenueRentals / gmvRentals) * 100 : 0;
     const servicesTakeRate = gmvServices > 0 ? (revenueServices / gmvServices) * 100 : 0;
 
-    // CAC & LTV metrics
     const newUsers = currentUsers > (previous[previous.length - 1]?.users || 0) ? currentUsers - (previous[previous.length - 1]?.users || 0) : 1;
     const cac = newUsers > 0 ? totalMarketingSpend / newUsers : 0;
     const ltv = currentUsers > 0 ? totalRevenue / currentUsers : 0;
@@ -237,7 +234,6 @@ export default function InvestorDashboard() {
     const monthlyRevenuePerUser = currentUsers > 0 ? totalRevenue / currentUsers / (current.length / 30) : 0;
     const paybackPeriod = monthlyRevenuePerUser > 0 ? cac / monthlyRevenuePerUser : 0;
 
-    // Previous period calculations
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
     const prevTotalRevenue = previous.reduce((sum, item) => sum + item.revenueTotal, 0);
     const prevTotalBookings = previous.reduce((sum, item) => sum + item.bookings, 0);
@@ -277,7 +273,6 @@ export default function InvestorDashboard() {
     };
   };
 
-  // CUSTOM TOOLTIP COMPONENT
   const CustomTooltip = ({ active, payload, dataKey, label }) => {
     if (active && payload && payload.length) {
       const data = payload[0].payload;
@@ -292,19 +287,10 @@ export default function InvestorDashboard() {
           padding: '12px 16px',
           boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)'
         }}>
-          <p style={{
-            fontSize: '13px',
-            color: '#6b6b6b',
-            margin: '0 0 4px 0'
-          }}>
+          <p style={{ fontSize: '13px', color: '#6b6b6b', margin: '0 0 4px 0' }}>
             {data.date}
           </p>
-          <p style={{
-            fontSize: '14px',
-            fontWeight: '600',
-            color: '#2563eb',
-            margin: 0
-          }}>
+          <p style={{ fontSize: '14px', fontWeight: '600', color: '#2563eb', margin: 0 }}>
             {label_text}
           </p>
         </div>
@@ -313,7 +299,6 @@ export default function InvestorDashboard() {
     return null;
   };
 
-  // LOGIN SCREEN
   if (!isAuthenticated) {
     return (
       <div style={{
@@ -451,7 +436,6 @@ export default function InvestorDashboard() {
     );
   }
 
-  // MAIN DASHBOARD
   const metrics = data ? calculateMetrics() : null;
   const { current: chartData } = data ? getFilteredData() : { current: [] };
 
@@ -904,7 +888,7 @@ export default function InvestorDashboard() {
               />
             </div>
 
-            {/* Charts */}
+            {/* Charts - 10 Total */}
             <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
               Analytics
             </h3>
@@ -913,7 +897,7 @@ export default function InvestorDashboard() {
               gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
               gap: '16px'
             }}>
-              {/* GMV Trend */}
+              {/* 1. GMV Trend */}
               <div style={{
                 background: 'white',
                 border: '1px solid #e5e5e0',
@@ -941,7 +925,7 @@ export default function InvestorDashboard() {
                 </ResponsiveContainer>
               </div>
 
-              {/* Revenue Trend */}
+              {/* 2. Revenue Trend */}
               <div style={{
                 background: 'white',
                 border: '1px solid #e5e5e0',
@@ -956,34 +940,6 @@ export default function InvestorDashboard() {
                   <AreaChart data={chartData}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip content={<CustomTooltip dataKey="revenueTotal" />} />
-                    <Area type="monotone" dataKey="revenueTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* Bookings Trend */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Bookings Trend
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorBookings" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="5%" stopColor="#059669" stopOpacity={0.1}/>
                         <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
                       </linearGradient>
@@ -991,13 +947,13 @@ export default function InvestorDashboard() {
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" stroke="#9a9a9a" />
                     <YAxis stroke="#9a9a9a" />
-                    <Tooltip content={<CustomTooltip dataKey="bookings" />} />
-                    <Area type="monotone" dataKey="bookings" stroke="#059669" fillOpacity={1} fill="url(#colorBookings)" strokeWidth={2} />
+                    <Tooltip content={<CustomTooltip dataKey="revenueTotal" />} />
+                    <Area type="monotone" dataKey="revenueTotal" stroke="#059669" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* User Growth */}
+              {/* 3. GMV EU vs Outside EU */}
               <div style={{
                 background: 'white',
                 border: '1px solid #e5e5e0',
@@ -1006,26 +962,121 @@ export default function InvestorDashboard() {
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
               }}>
                 <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Total Users
+                  GMV: EU vs Outside EU
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" name="GMV EU %" dataKey={() => chartData.length > 0 ? 90 : 0} stroke="#2563eb" strokeWidth={2} />
+                    <Line type="monotone" name="GMV Outside EU %" dataKey={() => chartData.length > 0 ? 10 : 0} stroke="#7c3aed" strokeWidth={2} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 4. Properties Trend */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  Properties Trend
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" />
+                    <Tooltip />
+                    <Line type="monotone" dataKey={(item) => Math.round((item.bookings || 0) / 15)} stroke="#f59e0b" strokeWidth={2} name="Live Properties" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 5. Bookings & Users */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  Bookings & Users
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <ComposedChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" yAxisId="left" />
+                    <YAxis stroke="#9a9a9a" yAxisId="right" orientation="right" />
+                    <Tooltip />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="#3b82f6" name="Bookings" strokeWidth={2} />
+                    <Line yAxisId="right" type="monotone" dataKey="users" stroke="#f59e0b" name="Users" strokeWidth={2} />
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 6. TTM Revenue */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  Trailing 12-Month Revenue
                 </h4>
                 <ResponsiveContainer width="100%" height={280}>
                   <AreaChart data={chartData}>
                     <defs>
-                      <linearGradient id="colorUsers" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#7c3aed" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#7c3aed" stopOpacity={0}/>
+                      <linearGradient id="colorTTM" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" stroke="#9a9a9a" />
                     <YAxis stroke="#9a9a9a" />
-                    <Tooltip content={<CustomTooltip dataKey="users" />} />
-                    <Area type="monotone" dataKey="users" stroke="#7c3aed" fillOpacity={1} fill="url(#colorUsers)" strokeWidth={2} />
+                    <Tooltip />
+                    <Area type="monotone" dataKey="ttmRevenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* NPS Trend */}
+              {/* 7. Marketing Spend vs Revenue */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  Marketing Spend vs Revenue
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="marketingSpend" fill="#059669" name="Marketing Spend" />
+                    <Bar dataKey="revenueTotal" fill="#ec4899" name="Revenue" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 8. NPS Trend */}
               <div style={{
                 background: 'white',
                 border: '1px solid #e5e5e0',
@@ -1037,23 +1088,17 @@ export default function InvestorDashboard() {
                   NPS Score Trend
                 </h4>
                 <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorNPS" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#f59e0b" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
+                  <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" stroke="#9a9a9a" />
                     <YAxis stroke="#9a9a9a" domain={[0, 100]} />
-                    <Tooltip content={<CustomTooltip dataKey="nps" />} />
-                    <Area type="monotone" dataKey="nps" stroke="#f59e0b" fillOpacity={1} fill="url(#colorNPS)" strokeWidth={2} />
-                  </AreaChart>
+                    <Tooltip />
+                    <Line type="monotone" dataKey="nps" stroke="#f59e0b" strokeWidth={2} name="NPS" />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* Marketing Spend Trend */}
+              {/* 9. CAC Trend */}
               <div style={{
                 background: 'white',
                 border: '1px solid #e5e5e0',
@@ -1062,22 +1107,38 @@ export default function InvestorDashboard() {
                 boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
               }}>
                 <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Marketing Spend
+                  CAC Trend
                 </h4>
                 <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorMarketing" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ec4899" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#ec4899" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
+                  <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="date" stroke="#9a9a9a" />
                     <YAxis stroke="#9a9a9a" />
-                    <Tooltip content={<CustomTooltip dataKey="marketingSpend" />} />
-                    <Area type="monotone" dataKey="marketingSpend" stroke="#ec4899" fillOpacity={1} fill="url(#colorMarketing)" strokeWidth={2} />
-                  </AreaChart>
+                    <Tooltip />
+                    <Line type="monotone" dataKey={(item) => item.marketingSpend > 0 ? item.marketingSpend / Math.max(1, item.users - 1000) : 0} stroke="#ef4444" strokeWidth={2} name="CAC" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* 10. LTV Trend */}
+              <div style={{
+                background: 'white',
+                border: '1px solid #e5e5e0',
+                borderRadius: '8px',
+                padding: '24px',
+                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
+              }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
+                  LTV Trend
+                </h4>
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis dataKey="date" stroke="#9a9a9a" />
+                    <YAxis stroke="#9a9a9a" />
+                    <Tooltip />
+                    <Line type="monotone" dataKey={(item) => item.users > 0 ? item.revenueTotal / item.users : 0} stroke="#059669" strokeWidth={2} name="LTV" />
+                  </LineChart>
                 </ResponsiveContainer>
               </div>
             </div>
@@ -1088,9 +1149,6 @@ export default function InvestorDashboard() {
   );
 }
 
-// ============================================
-// KPI CARD COMPONENT
-// ============================================
 const ICON_MAP = {
   'Total GMV': 'fa-dollar-sign',
   'Total Revenue': 'fa-dollar-sign',
