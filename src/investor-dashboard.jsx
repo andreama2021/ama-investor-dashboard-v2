@@ -147,6 +147,7 @@ export default function InvestorDashboard() {
       const prevYear = parseInt(year) - 1;
       prevStartDateStr = `${prevYear}-${month}-01`;
       prevEndDateStr = `${prevYear}-${month}-31`;
+      console.log('Last Full Month Debug:', { lastDataPoint: lastDataPoint.date, startDateStr, endDateStr, prevStartDateStr, prevEndDateStr });
     } else if (period === 'custom' && customStartDate && customEndDate) {
       startDateStr = customStartDate;
       endDateStr = customEndDate;
@@ -172,6 +173,15 @@ export default function InvestorDashboard() {
 
     const current = data.filter(item => item.date >= startDateStr && item.date <= endDateStr);
     const previous = data.filter(item => item.date >= prevStartDateStr && item.date <= prevEndDateStr);
+
+    console.log(`Filtered Data (${period}):`, {
+      startDateStr,
+      endDateStr,
+      currentCount: current.length,
+      previousCount: previous.length,
+      currentRevenue: current.reduce((sum, item) => sum + item.revenueTotal, 0),
+      previousRevenue: previous.reduce((sum, item) => sum + item.revenueTotal, 0)
+    });
 
     return { current, previous };
   };
