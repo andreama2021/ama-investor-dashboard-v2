@@ -509,8 +509,10 @@ export default function InvestorDashboard() {
         </div>
       </header>
 
-      <div style={{ maxWidth: 1440, margin: '0 auto', padding: '32px 48px 0' }}>
-        <h2 style={{ fontSize: 32, fontWeight: 600, margin: '0 0 32px' }}>Investor Dashboard</h2>
+      <div style={{ background: 'white' }}>
+        <div style={{ maxWidth: 1440, margin: '0 auto', padding: '32px 48px 24px' }}>
+          <h2 style={{ fontSize: 32, fontWeight: 600, margin: 0 }}>Investor Dashboard</h2>
+        </div>
       </div>
 
       <div style={{ background: 'white', borderBottom: '1px solid #e5e5e0', position: 'sticky', top: 73, zIndex: 40, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
