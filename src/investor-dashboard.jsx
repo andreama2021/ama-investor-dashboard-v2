@@ -131,50 +131,47 @@ export default function InvestorDashboard() {
   const getFilteredData = () => {
     if (!data) return { current: [], previous: [] };
 
-    const now = new Date();
-    let startDate, endDate, prevStartDate, prevEndDate;
+    let startDateStr, endDateStr, prevStartDateStr, prevEndDateStr;
 
     if (selectedYear === 'Lifetime') {
-      startDate = new Date(data[0]?.date || '2023-01-01');
-      endDate = now;
-      prevStartDate = new Date('2000-01-01');
-      prevEndDate = startDate;
+      startDateStr = data[0]?.date || '2023-01-01';
+      endDateStr = '2099-12-31';
+      prevStartDateStr = '2000-01-01';
+      prevEndDateStr = startDateStr;
     } else if (period === '30') {
-      // Last full month: compare to same month a year ago
+      // Last full month: use last data point's month
       const lastDataPoint = data[data.length - 1];
-      const lastDate = new Date(lastDataPoint.date);
-      const lastMonth = lastDate.getMonth();
-      const lastYear = lastDate.getFullYear();
-
-      endDate = new Date(lastYear, lastMonth + 1, 0); // Last day of last month
-      startDate = new Date(lastYear, lastMonth, 1); // First day of last month
-
-      const prevYear = lastYear - 1;
-      prevEndDate = new Date(prevYear, lastMonth + 1, 0);
-      prevStartDate = new Date(prevYear, lastMonth, 1);
+      const [year, month] = lastDataPoint.date.split('-');
+      startDateStr = `${year}-${month}-01`;
+      endDateStr = `${year}-${month}-31`;
+      const prevYear = parseInt(year) - 1;
+      prevStartDateStr = `${prevYear}-${month}-01`;
+      prevEndDateStr = `${prevYear}-${month}-31`;
     } else if (period === 'custom' && customStartDate && customEndDate) {
-      startDate = new Date(customStartDate);
-      endDate = new Date(customEndDate);
-      const daysDiff = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24));
-      prevEndDate = new Date(startDate);
-      prevStartDate = new Date(prevEndDate.getTime() - daysDiff * 24 * 60 * 60 * 1000);
+      startDateStr = customStartDate;
+      endDateStr = customEndDate;
+      const [cyear, cmonth] = customStartDate.split('-');
+      const pyear = parseInt(cyear) - 1;
+      prevStartDateStr = `${pyear}-${cmonth}-01`;
+      prevEndDateStr = customEndDate.replace(cyear, pyear);
+    } else if (period === '90' && selectedQuarter) {
+      const quarterMap = { Q1: ['01', '02', '03'], Q2: ['04', '05', '06'], Q3: ['07', '08', '09'], Q4: ['10', '11', '12'] };
+      const months = quarterMap[selectedQuarter];
+      startDateStr = `${selectedYear}-${months[0]}-01`;
+      endDateStr = `${selectedYear}-${months[2]}-31`;
+      const prevYear = parseInt(selectedYear) - 1;
+      prevStartDateStr = `${prevYear}-${months[0]}-01`;
+      prevEndDateStr = `${prevYear}-${months[2]}-31`;
     } else {
-      const days = parseInt(period);
-      endDate = now;
-      startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
-      prevEndDate = new Date(startDate);
-      prevStartDate = new Date(prevEndDate.getTime() - days * 24 * 60 * 60 * 1000);
+      startDateStr = `${selectedYear}-01-01`;
+      endDateStr = `${selectedYear}-12-31`;
+      const prevYear = parseInt(selectedYear) - 1;
+      prevStartDateStr = `${prevYear}-01-01`;
+      prevEndDateStr = `${prevYear}-12-31`;
     }
 
-    const current = data.filter(item => {
-      const itemDate = new Date(item.date);
-      return itemDate >= startDate && itemDate <= endDate;
-    });
-
-    const previous = data.filter(item => {
-      const itemDate = new Date(item.date);
-      return itemDate >= prevStartDate && itemDate < prevEndDate;
-    });
+    const current = data.filter(item => item.date >= startDateStr && item.date <= endDateStr);
+    const previous = data.filter(item => item.date >= prevStartDateStr && item.date <= prevEndDateStr);
 
     return { current, previous };
   };
