@@ -245,6 +245,17 @@ export default function InvestorDashboard() {
     }
 
     const current = data.filter(item => item.date >= startDateStr && item.date <= endDateStr);
+
+    // Year-to-date / partial period: if the current range has data only up to a given month
+    // (e.g. Jan-Sep 2026), compare against the same months a year earlier (Jan-Sep 2025),
+    // not the whole prior range (Jan-Dec 2025).
+    if (current.length > 0 && selectedYear !== 'lifetime' && period !== 'custom' && period !== 'lastMonth') {
+      const lastMonthWithData = current[current.length - 1].date.slice(5, 7);
+      const prevYearOfRange = prevEndDateStr.slice(0, 4);
+      const cappedPrevEnd = `${prevYearOfRange}-${lastMonthWithData}-31`;
+      if (cappedPrevEnd < prevEndDateStr) prevEndDateStr = cappedPrevEnd;
+    }
+
     const previous = data.filter(item => item.date >= prevStartDateStr && item.date <= prevEndDateStr);
 
     const currentRevenue = current.reduce((s, i) => s + i.revenueTotal, 0);
