@@ -8,7 +8,7 @@ const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
   SHEET_RANGE: 'Sheet1!A1:W1000',
-  ACCESS_PIN: 'ama2026'
+  ACCESS_PIN: '2026'
 };
 
 // ============================================
@@ -16,33 +16,17 @@ const CONFIG = {
 // ============================================
 function Logo({ size = 40 }) {
   return (
-    <svg
+    <img
+      src="/Logo_A_icon.jpg"
+      alt="A.M.A Logo"
       width={size}
       height={size}
-      viewBox="0 0 40 40"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ flexShrink: 0 }}
-    >
-      <defs>
-        <linearGradient id="logoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#2563eb" />
-          <stop offset="100%" stopColor="#3b82f6" />
-        </linearGradient>
-      </defs>
-      <rect width="40" height="40" rx="10" fill="url(#logoGradient)" />
-      <text
-        x="20"
-        y="28"
-        fontSize="24"
-        fontWeight="700"
-        fill="white"
-        textAnchor="middle"
-        fontFamily="DM Sans, sans-serif"
-      >
-        A
-      </text>
-    </svg>
+      style={{
+        flexShrink: 0,
+        borderRadius: '8px',
+        objectFit: 'cover'
+      }}
+    />
   );
 }
 
