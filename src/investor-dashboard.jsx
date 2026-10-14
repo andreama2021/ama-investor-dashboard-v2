@@ -1,9 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts';
 
-const CONFIG = {
-  GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
-  SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
   SHEET_RANGE: 'Sheet1!A1:V1000',
   ACCESS_PIN: '2026'
 };
@@ -421,7 +416,9 @@ export default function InvestorDashboard() {
   const GOLD = '#A28D50';
   const FONT = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
   const card = { background: 'white', border: '1px solid #e5e5e0', borderRadius: 8, padding: 24, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' };
-  const tip = { backgroundColor: '#fff', border: '1px solid #e5e5e0', borderRadius: 8 };
+  const tip = { backgroundColor: '#fff', border: '1px solid #e5e5e0', borderRadius: 8, padding: '8px 12px', boxShadow: '0 2px 8px rgba(0,0,0,0.08)' };
+  const tipLabel = { fontSize: 12, fontWeight: 600, color: '#1a1a1a', marginBottom: 2 };
+  const tipItem = { fontSize: 12, padding: 0 };
   const money = (v) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
   const compact = (v) => v >= 1000000 ? `$${(v / 1000000).toFixed(2)}M` : v >= 1000 ? `$${(v / 1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
 
@@ -598,7 +595,7 @@ export default function InvestorDashboard() {
                   <ComposedChart data={gmvTrendData}>
                     <defs><linearGradient id="cGMV" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={GOLD} stopOpacity={0.3} /><stop offset="95%" stopColor={GOLD} stopOpacity={0} /></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} formatter={(v) => money(v)} />
                     <Area type="monotone" dataKey="gmvTotal" stroke={GOLD} fill="url(#cGMV)" strokeWidth={2} name="GMV" />
                     {showTrendlines.gmv && <Line type="monotone" dataKey="gmvTotal_trend" stroke="#6f5f33" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </ComposedChart>
@@ -610,7 +607,7 @@ export default function InvestorDashboard() {
                   <ComposedChart data={revenueTrendData}>
                     <defs><linearGradient id="cRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} formatter={(v) => money(v)} />
                     <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fill="url(#cRev)" strokeWidth={2} name="Revenue" />
                     {showTrendlines.revenue && <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </ComposedChart>
@@ -621,7 +618,7 @@ export default function InvestorDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => `${Number(v).toFixed(0)}%`} /><Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} formatter={(v) => `${Number(v).toFixed(0)}%`} /><Legend wrapperStyle={{ fontSize: 12 }} />
                     <Area type="monotone" dataKey="gmvEU" stroke={GOLD} fill={GOLD} fillOpacity={0.15} strokeWidth={2} name="GMV EU %" />
                     <Area type="monotone" dataKey="gmvOutsideEU" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.15} strokeWidth={2} name="GMV Outside EU %" />
                   </AreaChart>
@@ -631,7 +628,7 @@ export default function InvestorDashboard() {
               <ChartCard title="Properties Trend" trendKey="properties">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={propertiesTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} /><Tooltip labelFormatter={fmtDate} contentStyle={tip} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} /><Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} />
                     <Line type="monotone" dataKey="properties" stroke="#f97316" strokeWidth={2.5} dot={dot('#f97316')} activeDot={{ r: 5 }} name="Properties" />
                     {showTrendlines.properties && <Line type="monotone" dataKey="properties_trend" stroke="#c2410c" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
@@ -643,7 +640,7 @@ export default function InvestorDashboard() {
                   <LineChart data={bookingsTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} />
                     <YAxis yAxisId="left" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} /><YAxis yAxisId="right" orientation="right" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} /><Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} /><Legend wrapperStyle={{ fontSize: 12 }} />
                     <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="#8b5cf6" strokeWidth={2} dot={dot('#8b5cf6')} activeDot={{ r: 5 }} name="Bookings" />
                     {showTrendlines.bookings && <Line yAxisId="left" type="monotone" dataKey="bookings_trend" stroke="#6b21a8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Bookings Trend" />}
                     <Line yAxisId="right" type="monotone" dataKey="users" stroke={GOLD} strokeWidth={2} dot={dot(GOLD)} activeDot={{ r: 5 }} name="Users" />
@@ -656,7 +653,7 @@ export default function InvestorDashboard() {
                   <ComposedChart data={ttmTrendData}>
                     <defs><linearGradient id="cTTM" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient></defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} formatter={(v) => money(v)} />
                     <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fill="url(#cTTM)" strokeWidth={2} name="TTM Revenue" />
                     {showTrendlines.ttm && <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </ComposedChart>
@@ -667,7 +664,7 @@ export default function InvestorDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} /><Legend wrapperStyle={{ fontSize: 12 }} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} formatter={(v) => money(v)} /><Legend wrapperStyle={{ fontSize: 12 }} />
                     <Bar dataKey="marketingSpend" fill="#ef4444" radius={[6, 6, 0, 0]} name="Marketing Spend" />
                     <Bar dataKey="revenueTotal" fill="#10b981" radius={[6, 6, 0, 0]} name="Revenue" />
                   </BarChart>
@@ -677,7 +674,7 @@ export default function InvestorDashboard() {
               <ChartCard title="NPS Score Trend" trendKey="nps">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={npsTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} domain={[0, 100]} /><Tooltip labelFormatter={fmtDate} contentStyle={tip} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} domain={[0, 100]} /><Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} />
                     <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={2.5} dot={dot('#eab308')} activeDot={{ r: 5 }} name="NPS Score" />
                     {showTrendlines.nps && <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
@@ -688,7 +685,7 @@ export default function InvestorDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={cacTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} formatter={(v) => money(v)} />
                     <Line type="monotone" dataKey="cac" stroke="#ef4444" strokeWidth={2.5} dot={dot('#ef4444')} activeDot={{ r: 5 }} name="CAC" />
                     {showTrendlines.cac && <Line type="monotone" dataKey="cac_trend" stroke="#991b1b" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
@@ -699,7 +696,7 @@ export default function InvestorDashboard() {
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={ltvTrendData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} tickFormatter={fmtDate} minTickGap={16} padding={{ left: 8, right: 8 }} /><YAxis stroke="#d9d7ce" tick={{ fontSize: 11, fill: '#9a9a9a' }} tickLine={false} width={52} tickFormatter={fmtAxis} />
-                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Tooltip labelFormatter={fmtDate} labelStyle={tipLabel} itemStyle={tipItem} contentStyle={tip} formatter={(v) => money(v)} />
                     <Line type="monotone" dataKey="ltv" stroke="#10b981" strokeWidth={2.5} dot={dot('#10b981')} activeDot={{ r: 5 }} name="LTV" />
                     {showTrendlines.ltv && <Line type="monotone" dataKey="ltv_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
@@ -733,4 +730,3 @@ function KPICard({ title, value, growth, icon, isPercentage = false, invertGrowt
     </div>
   );
 }
-
