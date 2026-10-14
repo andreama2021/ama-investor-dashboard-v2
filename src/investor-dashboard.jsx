@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts';
+import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target, Home, Percent } from 'lucide-react';
 
 // ============================================
 // CONFIGURATION
@@ -7,35 +8,44 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, L
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
-  SHEET_RANGE: 'Sheet1!A1:W1000',
+  SHEET_RANGE: 'Sheet1!A1:V1000',
   ACCESS_PIN: '2026'
 };
 
-function Logo({ size = 40 }) {
-  return (
-    <img
-      src="/Logo_A_icon.jpg"
-      alt="A.M.A Logo"
-      width={size}
-      height={size}
-      style={{
-        flexShrink: 0,
-        borderRadius: '8px',
-        objectFit: 'cover'
-      }}
-    />
-  );
-}
+// ============================================
+// HELPER FUNCTION - LINEAR REGRESSION
+// ============================================
+const calculateTrendline = (data, dataKey) => {
+  if (!data || data.length === 0) return [];
 
-function formatNumber(num) {
-  if (num >= 1000000) {
-    return (num / 1000000).toFixed(2) + 'M';
-  } else if (num >= 1000) {
-    return (num / 1000).toFixed(0) + 'K';
-  }
-  return num.toLocaleString();
-}
+  const validData = data.filter(item => item[dataKey] !== null && item[dataKey] !== undefined && !isNaN(item[dataKey]));
+  const n = validData.length;
 
+  if (n === 0) return data;
+
+  let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+
+  validData.forEach((item, index) => {
+    const x = index;
+    const y = item[dataKey];
+    sumX += x;
+    sumY += y;
+    sumXY += x * y;
+    sumX2 += x * x;
+  });
+
+  const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+  const intercept = (sumY - slope * sumX) / n;
+
+  return data.map((item, index) => ({
+    ...item,
+    [`${dataKey}_trend`]: slope * index + intercept
+  }));
+};
+
+// ============================================
+// MAIN APP COMPONENT
+// ============================================
 export default function InvestorDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -43,11 +53,29 @@ export default function InvestorDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [period, setPeriod] = useState('30');
-  const [selectedYear, setSelectedYear] = useState('2026');
-  const [selectedQuarter, setSelectedQuarter] = useState(null);
+  const [period, setPeriod] = useState('lastMonth');
+  const [selectedYear, setSelectedYear] = useState(2026);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
+
+  // Trendline toggles for each chart
+  const [showTrendlines, setShowTrendlines] = useState({
+    gmv: false,
+    revenue: false,
+    properties: false,
+    bookings: false,
+    ttm: false,
+    nps: false,
+    cac: false,
+    ltv: false
+  });
+
+  const toggleTrendline = (chartName) => {
+    setShowTrendlines(prev => ({
+      ...prev,
+      [chartName]: !prev[chartName]
+    }));
+  };
 
   useEffect(() => {
     let link = document.querySelector("link[rel='icon']");
@@ -91,10 +119,15 @@ export default function InvestorDashboard() {
   const fetchData = async () => {
     setLoading(true);
     setError(null);
+
     try {
       const url = `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${CONFIG.SHEET_RANGE}?key=${CONFIG.GOOGLE_SHEETS_API_KEY}`;
       const response = await fetch(url);
-      if (!response.ok) throw new Error('Failed to fetch data from Google Sheets');
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch data from Google Sheets');
+      }
+
       const result = await response.json();
       setData(parseSheetData(result.values));
     } catch (err) {
@@ -106,11 +139,12 @@ export default function InvestorDashboard() {
 
   const parseSheetData = (rows) => {
     if (!rows || rows.length < 2) return null;
+
+    const headers = rows[0];
     const dataRows = rows.slice(1);
 
     return dataRows.map(row => ({
       date: row[0] || '',
-      month: row[0] ? row[0].substring(0, 7) : '', // YYYY-MM format
       gmvTotal: parseFloat(row[1]) || 0,
       gmvRentals: parseFloat(row[2]) || 0,
       gmvServices: parseFloat(row[3]) || 0,
@@ -124,7 +158,14 @@ export default function InvestorDashboard() {
       nps: parseFloat(row[11]) || 0,
       marketingSpend: parseFloat(row[12]) || 0,
       cashPosition: parseFloat(row[13]) || 0,
-      ttmRevenue: parseFloat(row[14]) || 0
+      ttmRevenue: parseFloat(row[14]) || 0,
+      gmvEU: parseFloat(row[15]) || 0,
+      gmvOutsideEU: parseFloat(row[16]) || 0,
+      properties: parseInt(row[17]) || 0,
+      cac: parseFloat(row[18]) || 0,
+      avgBookingsPerCustomer: parseFloat(row[19]) || 0,
+      grossMargin: parseFloat(row[20]) || 0,
+      npsCount: parseInt(row[21]) || 0
     })).filter(item => item.date);
   };
 
@@ -133,54 +174,82 @@ export default function InvestorDashboard() {
 
     let startDateStr, endDateStr, prevStartDateStr, prevEndDateStr;
 
-    if (selectedYear === 'Lifetime') {
-      startDateStr = data[0]?.date || '2023-01-01';
+    if (selectedYear === 'lifetime') {
+      startDateStr = '2023-01-01';
       endDateStr = '2099-12-31';
-      prevStartDateStr = '2000-01-01';
-      prevEndDateStr = startDateStr;
-    } else if (period === '30') {
-      // Last full month: use last data point's month
-      const lastDataPoint = data[data.length - 1];
-      const [year, month] = lastDataPoint.date.split('-');
-      startDateStr = `${year}-${month}-01`;
-      endDateStr = `${year}-${month}-31`;
-      const prevYear = parseInt(year) - 1;
-      prevStartDateStr = `${prevYear}-${month}-01`;
-      prevEndDateStr = `${prevYear}-${month}-31`;
-      console.log('Last Full Month Debug:', { lastDataPoint: lastDataPoint.date, startDateStr, endDateStr, prevStartDateStr, prevEndDateStr });
+      prevStartDateStr = '2022-01-01';
+      prevEndDateStr = '2022-12-31';
+
+    } else if (period === 'lastMonth') {
+      // Find last data point to determine "last month"
+      if (data.length > 0) {
+        const lastDataDate = data[data.length - 1].date;
+        const [year, month] = lastDataDate.split('-');
+        startDateStr = `${year}-${month}-01`;
+        endDateStr = `${year}-${month}-31`;
+
+        const prevYear = parseInt(year) - 1;
+        prevStartDateStr = `${prevYear}-${month}-01`;
+        prevEndDateStr = `${prevYear}-${month}-31`;
+      }
+
+    } else if (period === 'Q1') {
+      startDateStr = `${selectedYear}-01-01`;
+      endDateStr = `${selectedYear}-03-31`;
+      prevStartDateStr = `${selectedYear - 1}-01-01`;
+      prevEndDateStr = `${selectedYear - 1}-03-31`;
+
+    } else if (period === 'Q2') {
+      startDateStr = `${selectedYear}-04-01`;
+      endDateStr = `${selectedYear}-06-30`;
+      prevStartDateStr = `${selectedYear - 1}-04-01`;
+      prevEndDateStr = `${selectedYear - 1}-06-30`;
+
+    } else if (period === 'Q3') {
+      startDateStr = `${selectedYear}-07-01`;
+      endDateStr = `${selectedYear}-09-30`;
+      prevStartDateStr = `${selectedYear - 1}-07-01`;
+      prevEndDateStr = `${selectedYear - 1}-09-30`;
+
+    } else if (period === 'Q4') {
+      startDateStr = `${selectedYear}-10-01`;
+      endDateStr = `${selectedYear}-12-31`;
+      prevStartDateStr = `${selectedYear - 1}-10-01`;
+      prevEndDateStr = `${selectedYear - 1}-12-31`;
+
+    } else if (period === 'fullYear') {
+      startDateStr = `${selectedYear}-01-01`;
+      endDateStr = `${selectedYear}-12-31`;
+      prevStartDateStr = `${selectedYear - 1}-01-01`;
+      prevEndDateStr = `${selectedYear - 1}-12-31`;
+
     } else if (period === 'custom' && customStartDate && customEndDate) {
       startDateStr = customStartDate;
       endDateStr = customEndDate;
-      const [cyear, cmonth] = customStartDate.split('-');
+      const [cyear, cmonth, cday] = customStartDate.split('-');
       const pyear = parseInt(cyear) - 1;
-      prevStartDateStr = `${pyear}-${cmonth}-01`;
-      prevEndDateStr = customEndDate.replace(cyear, pyear);
-    } else if (period === '90' && selectedQuarter) {
-      const quarterMap = { Q1: ['01', '02', '03'], Q2: ['04', '05', '06'], Q3: ['07', '08', '09'], Q4: ['10', '11', '12'] };
-      const months = quarterMap[selectedQuarter];
-      startDateStr = `${selectedYear}-${months[0]}-01`;
-      endDateStr = `${selectedYear}-${months[2]}-31`;
-      const prevYear = parseInt(selectedYear) - 1;
-      prevStartDateStr = `${prevYear}-${months[0]}-01`;
-      prevEndDateStr = `${prevYear}-${months[2]}-31`;
+      prevStartDateStr = `${pyear}-${cmonth}-${cday}`;
+      const [eyear, emonth, eday] = customEndDate.split('-');
+      const peyear = parseInt(eyear) - 1;
+      prevEndDateStr = `${peyear}-${emonth}-${eday}`;
     } else {
       startDateStr = `${selectedYear}-01-01`;
       endDateStr = `${selectedYear}-12-31`;
-      const prevYear = parseInt(selectedYear) - 1;
-      prevStartDateStr = `${prevYear}-01-01`;
-      prevEndDateStr = `${prevYear}-12-31`;
+      prevStartDateStr = `${selectedYear - 1}-01-01`;
+      prevEndDateStr = `${selectedYear - 1}-12-31`;
     }
 
+    // String-based date comparison (YYYY-MM-DD format is sortable)
     const current = data.filter(item => item.date >= startDateStr && item.date <= endDateStr);
     const previous = data.filter(item => item.date >= prevStartDateStr && item.date <= prevEndDateStr);
 
-    console.log(`Filtered Data (${period}):`, {
+    console.log(`Filtered (${period}):`, {
       startDateStr,
       endDateStr,
       currentCount: current.length,
       previousCount: previous.length,
-      currentRevenue: current.reduce((sum, item) => sum + item.revenueTotal, 0),
-      previousRevenue: previous.reduce((sum, item) => sum + item.revenueTotal, 0)
+      currentRevenue: current.reduce((s, i) => s + i.revenueTotal, 0),
+      previousRevenue: previous.reduce((s, i) => s + i.revenueTotal, 0)
     });
 
     return { current, previous };
@@ -191,66 +260,153 @@ export default function InvestorDashboard() {
 
     if (current.length === 0) {
       return {
-        totalGMV: 0, totalRevenue: 0, totalBookings: 0, totalNights: 0,
-        avgBookingValue: 0, currentUsers: 0, avgNPS: 0, totalMarketingSpend: 0,
-        marketingEfficiency: 0, currentCash: 0, latestTTM: 0, runway: 0,
-        gmvEU: 0, gmvOutsideEU: 0, liveProperties: 0,
-        rentalRevenuePerBooking: 0, servicesRevenuePerBooking: 0,
-        rentalTakeRate: 0, servicesTakeRate: 0,
-        cac: 0, ltv: 0, ltvCacRatio: 0, paybackPeriod: 0,
+        totalGMV: 0,
+        totalRevenue: 0,
+        totalBookings: 0,
+        totalNights: 0,
+        avgBookingValue: 0,
+        rentalRevenuePerBooking: 0,
+        servicesRevenuePerBooking: 0,
+        rentalTakeRate: 0,
+        servicesTakeRate: 0,
+        currentUsers: 0,
+        avgNPS: 0,
+        totalMarketingSpend: 0,
+        marketingEfficiency: 0,
+        currentCash: 0,
+        latestTTM: 0,
+        runway: 0,
+        avgGmvEU: 0,
+        avgGmvOutsideEU: 0,
+        currentProperties: 0,
+        avgCAC: 0,
+        avgLTV: 0,
+        ltvCacRatio: 0,
+        paybackPeriod: 0,
         growth: {}
       };
     }
 
     const totalGMV = current.reduce((sum, item) => sum + item.gmvTotal, 0);
+    const totalGMVRentals = current.reduce((sum, item) => sum + item.gmvRentals, 0);
+    const totalGMVServices = current.reduce((sum, item) => sum + item.gmvServices, 0);
     const totalRevenue = current.reduce((sum, item) => sum + item.revenueTotal, 0);
+    const totalRevenueRentals = current.reduce((sum, item) => sum + item.revenueRentals, 0);
+    const totalRevenueServices = current.reduce((sum, item) => sum + item.revenueServices, 0);
     const totalBookings = current.reduce((sum, item) => sum + item.bookings, 0);
     const totalNights = current.reduce((sum, item) => sum + item.nights, 0);
-    const avgBookingValue = current.reduce((sum, item) => sum + item.avgBookingValue, 0) / current.length;
+
+    // FIX 1: Average Booking Value - Use total GMV / total bookings
+    const avgBookingValue = totalBookings > 0 ? totalGMV / totalBookings : 0;
+
+    const rentalRevenuePerBooking = totalBookings > 0 ? totalRevenueRentals / totalBookings : 0;
+    const servicesRevenuePerBooking = totalBookings > 0 ? totalRevenueServices / totalBookings : 0;
+    const rentalTakeRate = totalGMVRentals > 0 ? (totalRevenueRentals / totalGMVRentals) * 100 : 0;
+    const servicesTakeRate = totalGMVServices > 0 ? (totalRevenueServices / totalGMVServices) * 100 : 0;
+
     const currentUsers = current[current.length - 1]?.users || 0;
-    const avgNPS = current.reduce((sum, item) => sum + item.nps, 0) / current.length;
+
+    // FIX: NPS - Use weighted average by response count
+    const totalNPSResponses = current.reduce((sum, item) => sum + item.npsCount, 0);
+    const weightedNPSSum = current.reduce((sum, item) => sum + (item.nps * item.npsCount), 0);
+    const avgNPS = totalNPSResponses > 0 ? weightedNPSSum / totalNPSResponses : 0;
+
     const totalMarketingSpend = current.reduce((sum, item) => sum + item.marketingSpend, 0);
     const marketingEfficiency = totalMarketingSpend > 0 ? (totalRevenue / totalMarketingSpend) * 100 : 0;
     const currentCash = current[current.length - 1]?.cashPosition || 0;
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
 
-    const endOfRunway = new Date(2028, 2, 31);
-    const now = new Date(current[current.length - 1]?.date || new Date());
-    const monthsDiff = (endOfRunway - now) / (1000 * 60 * 60 * 24 * 30.44);
-    const runway = Math.max(0, monthsDiff);
+    // Get previous period's TTM
+    const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
 
-    const gmvRentals = current.reduce((sum, item) => sum + item.gmvRentals, 0);
-    const gmvServices = current.reduce((sum, item) => sum + item.gmvServices, 0);
-    const gmvEU = gmvRentals * 0.9;
-    const gmvOutsideEU = gmvRentals * 0.1;
-    const liveProperties = Math.round(totalBookings / 15);
+    // FIX 2: GMV EU % - Use weighted average by GMV
+    const totalGMVEU = current.reduce((sum, item) => sum + (item.gmvTotal * item.gmvEU / 100), 0);
+    const avgGmvEU = totalGMV > 0 ? (totalGMVEU / totalGMV) * 100 : 0;
+    const avgGmvOutsideEU = 100 - avgGmvEU;
 
-    const revenueRentals = current.reduce((sum, item) => sum + item.revenueRentals, 0);
-    const revenueServices = current.reduce((sum, item) => sum + item.revenueServices, 0);
-    const rentalBookings = totalBookings * 0.85;
-    const servicesBookings = totalBookings * 0.15;
-    const rentalRevenuePerBooking = rentalBookings > 0 ? revenueRentals / rentalBookings : 0;
-    const servicesRevenuePerBooking = servicesBookings > 0 ? revenueServices / servicesBookings : 0;
-    const rentalTakeRate = gmvRentals > 0 ? (revenueRentals / gmvRentals) * 100 : 0;
-    const servicesTakeRate = gmvServices > 0 ? (revenueServices / gmvServices) * 100 : 0;
+    const currentProperties = current[current.length - 1]?.properties || 0;
+    const avgCAC = current.reduce((sum, item) => sum + item.cac, 0) / current.length;
 
-    const newUsers = currentUsers > (previous[previous.length - 1]?.users || 0) ? currentUsers - (previous[previous.length - 1]?.users || 0) : 1;
-    const cac = newUsers > 0 ? totalMarketingSpend / newUsers : 0;
-    const ltv = currentUsers > 0 ? totalRevenue / currentUsers : 0;
-    const ltvCacRatio = cac > 0 ? ltv / cac : 0;
-    const monthlyRevenuePerUser = currentUsers > 0 ? totalRevenue / currentUsers / (current.length / 30) : 0;
-    const paybackPeriod = monthlyRevenuePerUser > 0 ? cac / monthlyRevenuePerUser : 0;
+    // FIX 3: Use most recent month's value for Avg Bookings Per Customer
+    const avgBookingsPerCustomer = current[current.length - 1]?.avgBookingsPerCustomer || 0;
 
+    // FIX 4: Gross Margin - Use revenue-weighted average
+    const avgGrossMargin = totalRevenue > 0
+      ? current.reduce((sum, item) => sum + (item.revenueTotal * item.grossMargin), 0) / totalRevenue
+      : 0;
+
+    // LTV Calculation
+    const avgLTV = avgBookingValue * avgGrossMargin * avgBookingsPerCustomer;
+
+    // LTV/CAC Ratio
+    const ltvCacRatio = avgCAC > 0 ? avgLTV / avgCAC : 0;
+
+    // Payback Period (in number of bookings)
+    const grossProfitPerBooking = avgBookingValue * avgGrossMargin;
+    const paybackPeriod = grossProfitPerBooking > 0 ? avgCAC / grossProfitPerBooking : 0;
+
+    // Hard-coded runway: months until end of March 2028
+    let runway;
+    if (current.length > 0) {
+      const lastDate = new Date(current[current.length - 1].date);
+      const endOfRunway = new Date(2028, 2, 31);
+
+      const monthsDiff = (endOfRunway.getFullYear() - lastDate.getFullYear()) * 12 +
+                         (endOfRunway.getMonth() - lastDate.getMonth()) + 1;
+
+      runway = monthsDiff > 0 ? monthsDiff : 0;
+    } else {
+      runway = 0;
+    }
+
+    // PREVIOUS PERIOD - Apply same fixes
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
+    const prevTotalGMVRentals = previous.reduce((sum, item) => sum + item.gmvRentals, 0);
+    const prevTotalGMVServices = previous.reduce((sum, item) => sum + item.gmvServices, 0);
     const prevTotalRevenue = previous.reduce((sum, item) => sum + item.revenueTotal, 0);
+    const prevTotalRevenueRentals = previous.reduce((sum, item) => sum + item.revenueRentals, 0);
+    const prevTotalRevenueServices = previous.reduce((sum, item) => sum + item.revenueServices, 0);
     const prevTotalBookings = previous.reduce((sum, item) => sum + item.bookings, 0);
     const prevTotalNights = previous.reduce((sum, item) => sum + item.nights, 0);
-    const prevAvgBookingValue = previous.length > 0 ? previous.reduce((sum, item) => sum + item.avgBookingValue, 0) / previous.length : 0;
+
+    // FIX 1 (Previous): Average Booking Value
+    const prevAvgBookingValue = prevTotalBookings > 0 ? prevTotalGMV / prevTotalBookings : 0;
+
+    const prevRentalRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueRentals / prevTotalBookings : 0;
+    const prevServicesRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueServices / prevTotalBookings : 0;
+    const prevRentalTakeRate = prevTotalGMVRentals > 0 ? (prevTotalRevenueRentals / prevTotalGMVRentals) * 100 : 0;
+    const prevServicesTakeRate = prevTotalGMVServices > 0 ? (prevTotalRevenueServices / prevTotalGMVServices) * 100 : 0;
+
     const prevUsers = previous[previous.length - 1]?.users || 0;
-    const prevAvgNPS = previous.length > 0 ? previous.reduce((sum, item) => sum + item.nps, 0) / previous.length : 0;
-    const prevMarketingEfficiency = previous.reduce((sum, item) => sum + item.marketingSpend, 0) > 0 ? (prevTotalRevenue / previous.reduce((sum, item) => sum + item.marketingSpend, 0)) * 100 : 0;
-    const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
-    const prevLTV = prevUsers > 0 ? prevTotalRevenue / prevUsers : 0;
+
+    // FIX (Previous): NPS - Use weighted average
+    const prevTotalNPSResponses = previous.reduce((sum, item) => sum + item.npsCount, 0);
+    const prevWeightedNPSSum = previous.reduce((sum, item) => sum + (item.nps * item.npsCount), 0);
+    const prevAvgNPS = prevTotalNPSResponses > 0 ? prevWeightedNPSSum / prevTotalNPSResponses : 0;
+
+    const prevTotalMarketingSpend = previous.reduce((sum, item) => sum + item.marketingSpend, 0);
+    const prevMarketingEfficiency = prevTotalMarketingSpend > 0 ? (prevTotalRevenue / prevTotalMarketingSpend) * 100 : 0;
+
+    // FIX 2 (Previous): GMV EU %
+    const prevTotalGMVEU = previous.length > 0 ? previous.reduce((sum, item) => sum + (item.gmvTotal * item.gmvEU / 100), 0) : 0;
+    const prevAvgGmvEU = prevTotalGMV > 0 ? (prevTotalGMVEU / prevTotalGMV) * 100 : 0;
+    const prevAvgGmvOutsideEU = 100 - prevAvgGmvEU;
+
+    const prevProperties = previous[previous.length - 1]?.properties || 0;
+    const prevAvgCAC = previous.length > 0 ? previous.reduce((sum, item) => sum + item.cac, 0) / previous.length : 0;
+
+    // FIX 3 (Previous): Use most recent month's value
+    const prevAvgBookingsPerCustomer = previous[previous.length - 1]?.avgBookingsPerCustomer || 0;
+
+    // FIX 4 (Previous): Gross Margin
+    const prevAvgGrossMargin = prevTotalRevenue > 0
+      ? previous.reduce((sum, item) => sum + (item.revenueTotal * item.grossMargin), 0) / prevTotalRevenue
+      : 0;
+
+    const prevAvgLTV = prevAvgBookingValue * prevAvgGrossMargin * prevAvgBookingsPerCustomer;
+    const prevLtvCacRatio = prevAvgCAC > 0 ? prevAvgLTV / prevAvgCAC : 0;
+    const prevGrossProfitPerBooking = prevAvgBookingValue * prevAvgGrossMargin;
+    const prevPaybackPeriod = prevGrossProfitPerBooking > 0 ? prevAvgCAC / prevGrossProfitPerBooking : 0;
 
     const calculateGrowth = (current, previous) => {
       if (previous === 0) return current > 0 ? 100 : 0;
@@ -258,185 +414,94 @@ export default function InvestorDashboard() {
     };
 
     return {
-      totalGMV, totalRevenue, totalBookings, totalNights, avgBookingValue,
-      currentUsers, avgNPS, totalMarketingSpend, marketingEfficiency,
-      currentCash, latestTTM, runway,
-      gmvEU, gmvOutsideEU, liveProperties,
-      rentalRevenuePerBooking, servicesRevenuePerBooking,
-      rentalTakeRate, servicesTakeRate,
-      cac, ltv, ltvCacRatio, paybackPeriod,
+      totalGMV,
+      totalRevenue,
+      totalBookings,
+      totalNights,
+      avgBookingValue,
+      rentalRevenuePerBooking,
+      servicesRevenuePerBooking,
+      rentalTakeRate,
+      servicesTakeRate,
+      currentUsers,
+      avgNPS,
+      totalMarketingSpend,
+      marketingEfficiency,
+      currentCash,
+      latestTTM,
+      runway,
+      avgGmvEU,
+      avgGmvOutsideEU,
+      currentProperties,
+      avgCAC,
+      avgLTV,
+      ltvCacRatio,
+      paybackPeriod,
       growth: {
         gmv: calculateGrowth(totalGMV, prevTotalGMV),
         revenue: calculateGrowth(totalRevenue, prevTotalRevenue),
         bookings: calculateGrowth(totalBookings, prevTotalBookings),
         nights: calculateGrowth(totalNights, prevTotalNights),
         avgBookingValue: calculateGrowth(avgBookingValue, prevAvgBookingValue),
+        rentalRevenuePerBooking: calculateGrowth(rentalRevenuePerBooking, prevRentalRevenuePerBooking),
+        servicesRevenuePerBooking: calculateGrowth(servicesRevenuePerBooking, prevServicesRevenuePerBooking),
+        rentalTakeRate: rentalTakeRate - prevRentalTakeRate,
+        servicesTakeRate: servicesTakeRate - prevServicesTakeRate,
         users: calculateGrowth(currentUsers, prevUsers),
         nps: calculateGrowth(avgNPS, prevAvgNPS),
         marketingEfficiency: calculateGrowth(marketingEfficiency, prevMarketingEfficiency),
-        ttm: calculateGrowth(latestTTM, prevLatestTTM),
-        ltv: calculateGrowth(ltv, prevLTV)
+        gmvEU: avgGmvEU - prevAvgGmvEU,
+        gmvOutsideEU: avgGmvOutsideEU - prevAvgGmvOutsideEU,
+        properties: calculateGrowth(currentProperties, prevProperties),
+        cac: calculateGrowth(avgCAC, prevAvgCAC),
+        ltv: calculateGrowth(avgLTV, prevAvgLTV),
+        ltvCacRatio: calculateGrowth(ltvCacRatio, prevLtvCacRatio),
+        paybackPeriod: calculateGrowth(paybackPeriod, prevPaybackPeriod),
+        ttm: calculateGrowth(latestTTM, prevLatestTTM)
       }
     };
   };
 
-  const CustomTooltip = ({ active, payload, dataKey, label }) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      const value = payload[0].value;
-      const label_text = dataKey === 'gmvTotal' ? `GMV : $${value.toLocaleString()}` : `Revenue : $${value.toLocaleString()}`;
-
-      return (
-        <div style={{
-          background: 'white',
-          border: '1px solid #e5e5e0',
-          borderRadius: '8px',
-          padding: '12px 16px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.12)'
-        }}>
-          <p style={{ fontSize: '13px', color: '#6b6b6b', margin: '0 0 4px 0' }}>
-            {data.date}
-          </p>
-          <p style={{ fontSize: '14px', fontWeight: '600', color: '#2563eb', margin: 0 }}>
-            {label_text}
-          </p>
-        </div>
-      );
-    }
-    return null;
-  };
-
   if (!isAuthenticated) {
     return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#f9f9f8',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-        fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-      }}>
-        <style>{`
-          @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-        `}</style>
-        <div style={{
-          width: '100%',
-          maxWidth: '420px',
-          background: 'white',
-          borderRadius: '8px',
-          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.06)',
-          padding: '48px 40px'
-        }}>
-          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-              <Logo size={56} />
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-white">
+              <img
+                src="/Logo_A_icon.jpg"
+                alt="A.M.A Selections"
+                className="w-14 h-14 object-contain"
+              />
             </div>
-            <h1 style={{ fontSize: '24px', fontWeight: '600', color: '#1a1a1a', marginBottom: '4px', margin: 0 }}>
-              A.M.A Selections
-            </h1>
-            <p style={{ fontSize: '14px', color: '#6b6b6b', margin: 0 }}>
-              Investor Dashboard
-            </p>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">A.M.A Selections</h1>
+            <p className="text-slate-600">Investor Dashboard</p>
+            <p className="text-slate-500 text-sm mt-2">Enter PIN to access</p>
           </div>
 
           <form onSubmit={handlePinSubmit}>
-            <div style={{ marginBottom: '20px' }}>
-              <label style={{
-                display: 'block',
-                fontSize: '13px',
-                fontWeight: '500',
-                color: '#2d2d2d',
-                marginBottom: '8px'
-              }}>
-                PIN Code
-              </label>
-              <input
-                type="password"
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                placeholder="••••••"
-                maxLength="6"
-                autoFocus
-                style={{
-                  width: '100%',
-                  padding: '11px 14px',
-                  fontSize: '20px',
-                  border: '1px solid #d9d7ce',
-                  borderRadius: '8px',
-                  background: '#fafaf8',
-                  color: '#1a1a1a',
-                  textAlign: 'center',
-                  letterSpacing: '0.1em',
-                  fontFamily: "'Courier New', monospace",
-                  transition: 'all 0.2s',
-                  boxSizing: 'border-box'
-                }}
-                onFocus={(e) => {
-                  e.target.style.background = 'white';
-                  e.target.style.borderColor = '#2563eb';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(37, 99, 235, 0.1)';
-                }}
-                onBlur={(e) => {
-                  e.target.style.background = '#fafaf8';
-                  e.target.style.borderColor = '#d9d7ce';
-                  e.target.style.boxShadow = 'none';
-                }}
-              />
-            </div>
+            <input
+              type="password"
+              value={pinInput}
+              onChange={(e) => setPinInput(e.target.value)}
+              placeholder="Enter PIN"
+              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none text-center text-2xl tracking-widest mb-4"
+              maxLength="6"
+              autoFocus
+            />
 
             {pinError && (
-              <div style={{
-                background: '#fee2e2',
-                color: '#dc2626',
-                padding: '12px 14px',
-                borderRadius: '8px',
-                fontSize: '13px',
-                marginBottom: '16px',
-                border: '1px solid #fecaca'
-              }}>
+              <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm text-center">
                 Incorrect PIN. Please try again.
               </div>
             )}
 
             <button
               type="submit"
-              style={{
-                width: '100%',
-                padding: '12px',
-                background: '#A28D50',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                fontSize: '15px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                marginTop: '24px',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.background = '#8f7844';
-                e.target.style.boxShadow = '0 4px 16px rgba(162, 141, 80, 0.3)';
-                e.target.style.transform = 'translateY(-1px)';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.background = '#A28D50';
-                e.target.style.boxShadow = 'none';
-                e.target.style.transform = 'translateY(0)';
-              }}
+              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 rounded-lg transition-colors"
             >
               Access Dashboard
             </button>
-
-            <p style={{
-              textAlign: 'center',
-              fontSize: '12px',
-              color: '#6b6b6b',
-              marginTop: '24px',
-              margin: 0
-            }}>
-              Enter the 4-digit PIN to access your investor dashboard
-            </p>
           </form>
         </div>
       </div>
@@ -446,705 +511,732 @@ export default function InvestorDashboard() {
   const metrics = data ? calculateMetrics() : null;
   const { current: chartData } = data ? getFilteredData() : { current: [] };
 
-  return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f5f5f5',
-      fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
-    }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
-        @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .metric-value {
-          font-variant-numeric: tabular-nums;
-        }
-      `}</style>
+  // Calculate trendlines for all charts
+  const gmvTrendData = calculateTrendline(chartData, 'gmvTotal');
+  const revenueTrendData = calculateTrendline(chartData, 'revenueTotal');
+  const propertiesTrendData = calculateTrendline(chartData, 'properties');
+  const bookingsTrendData = calculateTrendline(chartData, 'bookings');
+  const ttmTrendData = calculateTrendline(chartData, 'ttmRevenue');
+  const npsTrendData = calculateTrendline(chartData, 'nps');
+  const cacTrendData = calculateTrendline(chartData, 'cac');
 
-      {/* Header */}
-      <header style={{
-        background: 'white',
-        borderBottom: '1px solid #e5e5e0',
-        padding: '16px 48px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.04)'
-      }}>
-        <div style={{
-          maxWidth: '1440px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Logo size={40} />
-            <div>
-              <h1 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', margin: 0 }}>
-                A.M.A Selections
-              </h1>
-              <p style={{ fontSize: '11px', color: '#9a9a9a', marginTop: '2px', margin: 0 }}>
-                Investor Dashboard
-              </p>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <div style={{ fontSize: '12px', color: '#6b6b6b' }}>
-              {selectedYear === 'Lifetime' ? 'Lifetime' : `2023 – ${selectedYear}`} · <strong>{selectedQuarter || 'Last Full Month'}</strong>
+  // Calculate LTV for each row
+  const chartDataWithLTV = chartData.map(item => ({
+    ...item,
+    ltv: item.avgBookingValue * item.grossMargin * item.avgBookingsPerCustomer
+  }));
+  const ltvTrendData = calculateTrendline(chartDataWithLTV, 'ltv');
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <img
+                src="/Logo_A_icon.jpg"
+                alt="A.M.A Selections"
+                className="w-10 h-10 object-contain"
+              />
+              <div>
+                <h1 className="text-2xl font-bold text-slate-900">A.M.A Selections</h1>
+                <p className="text-xs text-slate-500">Investor Dashboard</p>
+              </div>
             </div>
             <button
               onClick={handleLogout}
-              style={{
-                padding: '8px 16px',
-                background: 'transparent',
-                color: '#6b6b6b',
-                border: '1px solid #d9d7ce',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '13px',
-                fontWeight: '500',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.color = '#1a1a1a';
-                e.target.style.borderColor = '#c5c1b0';
-                e.target.style.background = '#fafaf8';
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.color = '#6b6b6b';
-                e.target.style.borderColor = '#d9d7ce';
-                e.target.style.background = 'transparent';
-              }}
+              className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 font-medium"
             >
-              ➜ Logout
+              Logout
             </button>
           </div>
         </div>
-      </header>
-
-      {/* Page Title */}
-      <div style={{
-        padding: '32px 48px 0',
-        maxWidth: '1440px',
-        margin: '0 auto'
-      }}>
-        <h2 style={{ fontSize: '32px', fontWeight: '600', color: '#1a1a1a', margin: '0 0 32px 0' }}>
-          Investor Dashboard
-        </h2>
       </div>
 
-      {/* Sticky Filter Section */}
-      <div style={{
-        background: 'white',
-        borderBottom: '1px solid #e5e5e0',
-        position: 'sticky',
-        top: '60px',
-        zIndex: 40,
-        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-      }}>
-        <div style={{
-          padding: '20px 48px',
-          maxWidth: '1440px',
-          margin: '0 auto'
-        }}>
-          <div style={{ display: 'flex', gap: '40px', alignItems: 'flex-start' }}>
-            {/* Select Year */}
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a1a', marginBottom: '12px' }}>
-                Select Year
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                {['2023', '2024', '2025', '2026', 'Lifetime'].map(year => (
-                  <button
-                    key={year}
-                    onClick={() => {
-                      setSelectedYear(year);
-                      if (year === 'Lifetime') {
-                        setPeriod('lifetime');
-                        setSelectedQuarter(null);
-                      } else {
-                        setPeriod('30');
-                        setSelectedQuarter(null);
-                      }
-                    }}
-                    style={{
-                      padding: '8px 14px',
-                      background: selectedYear === year ? '#A28D50' : 'transparent',
-                      color: selectedYear === year ? 'white' : '#6b6b6b',
-                      border: '1px solid #d9d7ce',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {year}
-                  </button>
-                ))}
-              </div>
-            </div>
+      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
+        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
+          <div className="flex items-center gap-2 mb-4">
+            <Calendar className="w-5 h-5 text-slate-600" />
+            <h2 className="text-lg font-semibold text-slate-900">Time Period</h2>
+          </div>
 
-            {/* Select Period */}
-            <div>
-              <div style={{ fontSize: '12px', fontWeight: '600', color: '#1a1a1a', marginBottom: '12px' }}>
-                Select Period
-              </div>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {[
-                  { value: '30', label: 'Last Full Month' },
-                  { value: 'Q1', label: 'Q1', quarter: 'Q1' },
-                  { value: 'Q2', label: 'Q2', quarter: 'Q2' },
-                  { value: 'Q3', label: 'Q3', quarter: 'Q3' },
-                  { value: 'Q4', label: 'Q4', quarter: 'Q4' },
-                  { value: '365', label: 'Full Year' },
-                  { value: 'custom', label: 'Custom Range' }
-                ].map(btn => (
-                  <button
-                    key={btn.label}
-                    onClick={() => {
-                      if (btn.quarter) {
-                        setPeriod('90');
-                        setSelectedQuarter(selectedQuarter === btn.quarter ? null : btn.quarter);
-                      } else {
-                        setPeriod(btn.value);
-                        setSelectedQuarter(null);
-                      }
-                    }}
-                    style={{
-                      padding: '8px 14px',
-                      background: (btn.quarter && selectedQuarter === btn.quarter) || (period === btn.value && !btn.quarter) ? '#A28D50' : 'transparent',
-                      color: (btn.quarter && selectedQuarter === btn.quarter) || (period === btn.value && !btn.quarter) ? 'white' : '#6b6b6b',
-                      border: '1px solid #d9d7ce',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      fontWeight: '500',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    {btn.label}
-                  </button>
-                ))}
-              </div>
+          <div className="mb-3">
+            <p className="text-sm text-slate-600 mb-2">Select Year</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setSelectedYear(2023)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2023 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2023
+              </button>
+              <button
+                onClick={() => setSelectedYear(2024)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2024 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2024
+              </button>
+              <button
+                onClick={() => setSelectedYear(2025)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2025 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2025
+              </button>
+              <button
+                onClick={() => setSelectedYear(2026)}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 2026 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                2026
+              </button>
+              <button
+                onClick={() => setSelectedYear('lifetime')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  selectedYear === 'lifetime' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+              >
+                Lifetime
+              </button>
             </div>
           </div>
 
-          {period === 'custom' && (
-            <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
+          <div>
+            <p className="text-sm text-slate-600 mb-2">Select Period</p>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={() => setPeriod('lastMonth')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'lastMonth' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                disabled={selectedYear === 'lifetime'}
+              >
+                Last Full Month
+              </button>
+              <button
+                onClick={() => setPeriod('Q1')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q1' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                disabled={selectedYear === 'lifetime'}
+              >
+                Q1
+              </button>
+              <button
+                onClick={() => setPeriod('Q2')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q2' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                disabled={selectedYear === 'lifetime'}
+              >
+                Q2
+              </button>
+              <button
+                onClick={() => setPeriod('Q3')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q3' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                disabled={selectedYear === 'lifetime'}
+              >
+                Q3
+              </button>
+              <button
+                onClick={() => setPeriod('Q4')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'Q4' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                disabled={selectedYear === 'lifetime'}
+              >
+                Q4
+              </button>
+              <button
+                onClick={() => setPeriod('fullYear')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'fullYear' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                disabled={selectedYear === 'lifetime'}
+              >
+                Full Year
+              </button>
+              <button
+                onClick={() => setPeriod('custom')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  period === 'custom' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                }`}
+                disabled={selectedYear === 'lifetime'}
+              >
+                Custom Range
+              </button>
+            </div>
+          </div>
+
+          {period === 'custom' && selectedYear !== 'lifetime' && (
+            <div className="flex gap-4 mt-4">
               <input
                 type="date"
                 value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #d9d7ce',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#1a1a1a'
-                }}
+                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
               />
               <input
                 type="date"
                 value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                style={{
-                  padding: '8px 12px',
-                  border: '1px solid #d9d7ce',
-                  borderRadius: '6px',
-                  fontSize: '13px',
-                  color: '#1a1a1a'
-                }}
+                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
               />
             </div>
           )}
         </div>
-      </div>
 
-      {/* Main Content */}
-      <div style={{
-        maxWidth: '1440px',
-        margin: '0 auto',
-        padding: '32px 48px'
-      }}>
         {loading && (
-          <div style={{
-            background: 'white',
-            borderRadius: '8px',
-            padding: '48px',
-            textAlign: 'center'
-          }}>
-            <div style={{
-              display: 'inline-block',
-              width: '32px',
-              height: '32px',
-              border: '4px solid #2563eb',
-              borderTop: '4px solid transparent',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
-              marginBottom: '16px'
-            }}></div>
-            <p style={{ color: '#6b6b6b' }}>Loading data...</p>
+          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+            <div className="inline-block w-8 h-8 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p className="text-slate-600">Loading data...</p>
           </div>
         )}
 
         {error && (
-          <div style={{
-            background: '#fef2f2',
-            border: '1px solid #fecaca',
-            borderRadius: '8px',
-            padding: '24px',
-            marginBottom: '32px'
-          }}>
-            <h3 style={{ color: '#dc2626', fontWeight: '600', marginBottom: '8px' }}>Error Loading Data</h3>
-            <p style={{ color: '#ef4444', fontSize: '14px', marginBottom: '8px' }}>{error}</p>
-            <p style={{ color: '#ef4444', fontSize: '14px' }}>Please check your Google Sheets configuration in the code.</p>
+          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
+            <h3 className="text-red-800 font-semibold mb-2">Error Loading Data</h3>
+            <p className="text-red-600 text-sm mb-4">{error}</p>
+            <p className="text-red-600 text-sm">Please check your Google Sheets configuration in the code.</p>
           </div>
         )}
 
         {!loading && !error && metrics && (
           <>
-            {/* Financial Performance */}
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-              Financial Performance
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px'
-            }}>
-              <KPICard
-                title="Total GMV"
-                value={`$${formatNumber(metrics.totalGMV)}`}
-                growth={metrics.growth.gmv}
-              />
-              <KPICard
-                title="Total Revenue"
-                value={`$${formatNumber(metrics.totalRevenue)}`}
-                growth={metrics.growth.revenue}
-              />
-              <KPICard
-                title="TTM Revenue"
-                value={`$${formatNumber(metrics.latestTTM)}`}
-                growth={metrics.growth.ttm}
-              />
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Financial Performance</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <KPICard
+                  title="Total GMV"
+                  value={`$${metrics.totalGMV.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.gmv}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="blue"
+                />
+
+                <KPICard
+                  title="Total Revenue"
+                  value={`$${metrics.totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.revenue}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="green"
+                />
+
+                <KPICard
+                  title="TTM Revenue"
+                  value={`$${metrics.latestTTM.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.ttm}
+                  icon={<TrendingUp className="w-6 h-6" />}
+                  color="purple"
+                />
+              </div>
             </div>
 
-            {/* Revenue Breakdown */}
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-              Revenue Breakdown
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px'
-            }}>
-              <KPICard
-                title="Avg Booking Value"
-                value={`$${metrics.avgBookingValue.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
-                growth={metrics.growth.avgBookingValue}
-              />
-              <KPICard
-                title="Rental Revenue/Booking"
-                value={`$${metrics.rentalRevenuePerBooking.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
-                growth={0}
-              />
-              <KPICard
-                title="Services Revenue/Booking"
-                value={`$${metrics.servicesRevenuePerBooking.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
-                growth={0}
-              />
-              <KPICard
-                title="Rental Take Rate"
-                value={`${metrics.rentalTakeRate.toFixed(1)}%`}
-                growth={0}
-              />
-              <KPICard
-                title="Services Take Rate"
-                value={`${metrics.servicesTakeRate.toFixed(1)}%`}
-                growth={0}
-              />
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Revenue Breakdown</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                <KPICard
+                  title="Avg Booking Value"
+                  value={`$${metrics.avgBookingValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.avgBookingValue}
+                  icon={<Target className="w-6 h-6" />}
+                  color="indigo"
+                />
+
+                <KPICard
+                  title="Rental Revenue/Booking"
+                  value={`$${metrics.rentalRevenuePerBooking.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.rentalRevenuePerBooking}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="blue"
+                  subtitle="Basic villa bookings"
+                />
+
+                <KPICard
+                  title="Services Revenue/Booking"
+                  value={`$${metrics.servicesRevenuePerBooking.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.servicesRevenuePerBooking}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="purple"
+                  subtitle="Concierge & add-ons"
+                />
+
+                <KPICard
+                  title="Rental Take Rate"
+                  value={`${metrics.rentalTakeRate.toFixed(1)}%`}
+                  growth={metrics.growth.rentalTakeRate}
+                  icon={<Percent className="w-6 h-6" />}
+                  color="green"
+                  isPercentage={true}
+                />
+
+                <KPICard
+                  title="Services Take Rate"
+                  value={`${metrics.servicesTakeRate.toFixed(1)}%`}
+                  growth={metrics.growth.servicesTakeRate}
+                  icon={<Percent className="w-6 h-6" />}
+                  color="orange"
+                  isPercentage={true}
+                />
+              </div>
             </div>
 
-            {/* Geographic Split */}
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-              Geographic Split
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px'
-            }}>
-              <KPICard
-                title="GMV EU"
-                value={`${((metrics.gmvEU / metrics.totalGMV) * 100).toFixed(1)}%`}
-                growth={0}
-              />
-              <KPICard
-                title="GMV Outside EU"
-                value={`${((metrics.gmvOutsideEU / metrics.totalGMV) * 100).toFixed(1)}%`}
-                growth={0}
-              />
-              <KPICard
-                title="Live Properties"
-                value={metrics.liveProperties.toLocaleString()}
-                growth={0}
-              />
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Geographic Split</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <KPICard
+                  title="GMV EU"
+                  value={`${metrics.avgGmvEU.toFixed(0)}%`}
+                  growth={metrics.growth.gmvEU}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="blue"
+                  isPercentage={true}
+                />
+
+                <KPICard
+                  title="GMV Outside EU"
+                  value={`${metrics.avgGmvOutsideEU.toFixed(0)}%`}
+                  growth={metrics.growth.gmvOutsideEU}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="purple"
+                  isPercentage={true}
+                />
+
+                <KPICard
+                  title="Live Properties"
+                  value={metrics.currentProperties.toFixed(0)}
+                  growth={metrics.growth.properties}
+                  icon={<Home className="w-6 h-6" />}
+                  color="orange"
+                />
+              </div>
             </div>
 
-            {/* Operations Section */}
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-              Operations
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px'
-            }}>
-              <KPICard
-                title="Total Bookings"
-                value={metrics.totalBookings.toLocaleString()}
-                growth={metrics.growth.bookings}
-              />
-              <KPICard
-                title="Nights Booked"
-                value={metrics.totalNights.toLocaleString()}
-                growth={metrics.growth.nights}
-              />
-              <KPICard
-                title="Total Users"
-                value={metrics.currentUsers.toLocaleString()}
-                growth={metrics.growth.users}
-              />
-              <KPICard
-                title="NPS Score"
-                value={metrics.avgNPS.toFixed(0)}
-                growth={metrics.growth.nps}
-              />
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Operations</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <KPICard
+                  title="Total Bookings"
+                  value={metrics.totalBookings.toLocaleString()}
+                  growth={metrics.growth.bookings}
+                  icon={<ShoppingCart className="w-6 h-6" />}
+                  color="blue"
+                />
+
+                <KPICard
+                  title="Nights Booked"
+                  value={metrics.totalNights.toLocaleString()}
+                  growth={metrics.growth.nights}
+                  icon={<Calendar className="w-6 h-6" />}
+                  color="orange"
+                />
+
+                <KPICard
+                  title="Total Users"
+                  value={metrics.currentUsers.toLocaleString()}
+                  growth={metrics.growth.users}
+                  icon={<Users className="w-6 h-6" />}
+                  color="purple"
+                />
+
+                <KPICard
+                  title="NPS Score"
+                  value={metrics.avgNPS.toFixed(0)}
+                  growth={metrics.growth.nps}
+                  icon={<Star className="w-6 h-6" />}
+                  color="yellow"
+                />
+              </div>
             </div>
 
-            {/* CAC & LTV */}
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-              CAC & LTV
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px'
-            }}>
-              <KPICard
-                title="Customer Acquisition Cost"
-                value={`$${metrics.cac.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
-                growth={0}
-              />
-              <KPICard
-                title="Lifetime Value"
-                value={`$${metrics.ltv.toLocaleString('en-US', {maximumFractionDigits: 0})}`}
-                growth={metrics.growth.ltv}
-              />
-              <KPICard
-                title="LTV / CAC Ratio"
-                value={metrics.ltvCacRatio.toFixed(2)}
-                growth={0}
-              />
-              <KPICard
-                title="Payback Period"
-                value={`${metrics.paybackPeriod.toFixed(2)} months`}
-                growth={0}
-              />
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">Marketing & Runway</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <KPICard
+                  title="Marketing Spend"
+                  value={`$${metrics.totalMarketingSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={null}
+                  icon={<Target className="w-6 h-6" />}
+                  color="red"
+                />
+
+                <KPICard
+                  title="Marketing Efficiency"
+                  value={`${metrics.marketingEfficiency.toFixed(0)}%`}
+                  growth={metrics.growth.marketingEfficiency}
+                  icon={<TrendingUp className="w-6 h-6" />}
+                  color="green"
+                  subtitle="Revenue / Marketing Spend"
+                />
+
+                <KPICard
+                  title="Cash Position"
+                  value={`$${metrics.currentCash.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={null}
+                  icon={<DollarSign className="w-6 h-6" />}
+                  color="indigo"
+                />
+
+                <KPICard
+                  title="Runway"
+                  value={`${metrics.runway.toFixed(0)}m`}
+                  growth={null}
+                  icon={<Calendar className="w-6 h-6" />}
+                  color="blue"
+                  subtitle="Until end of March 2028"
+                />
+              </div>
             </div>
 
-            {/* Marketing & Runway */}
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-              Marketing & Runway
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: '16px',
-              marginBottom: '32px'
-            }}>
-              <KPICard
-                title="Marketing Spend"
-                value={`$${formatNumber(metrics.totalMarketingSpend)}`}
-                growth={0}
-              />
-              <KPICard
-                title="Marketing Efficiency"
-                value={`${metrics.marketingEfficiency.toFixed(0)}%`}
-                growth={metrics.growth.marketingEfficiency}
-              />
-              <KPICard
-                title="Cash Position"
-                value={`$${formatNumber(metrics.currentCash)}`}
-                growth={0}
-              />
-              <KPICard
-                title="Runway"
-                value={`${metrics.runway.toFixed(1)}m`}
-                growth={0}
-                subtitle="Until end of March 2028"
-              />
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-slate-900 mb-4">CAC & LTV</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <KPICard
+                  title="Customer Acquisition Cost"
+                  value={`$${metrics.avgCAC.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.cac}
+                  icon={<Users className="w-6 h-6" />}
+                  color="red"
+                  invertGrowth={true}
+                />
+
+                <KPICard
+                  title="Lifetime Value"
+                  value={`$${metrics.avgLTV.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                  growth={metrics.growth.ltv}
+                  icon={<TrendingUp className="w-6 h-6" />}
+                  color="green"
+                />
+
+                <KPICard
+                  title="LTV / CAC Ratio"
+                  value={metrics.ltvCacRatio.toFixed(2)}
+                  growth={metrics.growth.ltvCacRatio}
+                  icon={<Target className="w-6 h-6" />}
+                  color="purple"
+                  subtitle="Target: >3.0"
+                />
+
+                <KPICard
+                  title="Payback Period"
+                  value={`${metrics.paybackPeriod.toFixed(2)} bookings`}
+                  growth={metrics.growth.paybackPeriod}
+                  icon={<Calendar className="w-6 h-6" />}
+                  color="indigo"
+                  invertGrowth={true}
+                  subtitle="Bookings to recover CAC"
+                />
+              </div>
             </div>
 
-            {/* Charts - 10 Total */}
-            <h3 style={{ fontSize: '16px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-              Analytics
-            </h3>
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))',
-              gap: '16px'
-            }}>
-              {/* 1. GMV Trend */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  GMV Trend
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={chartData}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">GMV Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.gmv}
+                      onChange={() => toggleTrendline('gmv')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={gmvTrendData}>
                     <defs>
                       <linearGradient id="colorGMV" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#2563eb" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip content={<CustomTooltip dataKey="gmvTotal" />} />
-                    <Area type="monotone" dataKey="gmvTotal" stroke="#2563eb" fillOpacity={1} fill="url(#colorGMV)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* 2. Revenue Trend */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Revenue Trend
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#059669" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#059669" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip content={<CustomTooltip dataKey="revenueTotal" />} />
-                    <Area type="monotone" dataKey="revenueTotal" stroke="#059669" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* 3. GMV EU vs Outside EU */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  GMV: EU vs Outside EU
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip />
-                    <Legend />
-                    <Line type="monotone" name="GMV EU %" dataKey={() => chartData.length > 0 ? 90 : 0} stroke="#2563eb" strokeWidth={2} />
-                    <Line type="monotone" name="GMV Outside EU %" dataKey={() => chartData.length > 0 ? 10 : 0} stroke="#7c3aed" strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* 4. Properties Trend */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Properties Trend
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip />
-                    <Line type="monotone" dataKey={(item) => Math.round((item.bookings || 0) / 15)} stroke="#f59e0b" strokeWidth={2} name="Live Properties" />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-
-              {/* 5. Bookings & Users */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Bookings & Users
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <ComposedChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" yAxisId="left" />
-                    <YAxis stroke="#9a9a9a" yAxisId="right" orientation="right" />
-                    <Tooltip />
-                    <Legend />
-                    <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="#3b82f6" name="Bookings" strokeWidth={2} />
-                    <Line yAxisId="right" type="monotone" dataKey="users" stroke="#f59e0b" name="Users" strokeWidth={2} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Area type="monotone" dataKey="gmvTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorGMV)" strokeWidth={2} name="GMV" />
+                    {showTrendlines.gmv && (
+                      <Line type="monotone" dataKey="gmvTotal_trend" stroke="#1e40af" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </ComposedChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* 6. TTM Revenue */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Trailing 12-Month Revenue
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <AreaChart data={chartData}>
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Revenue Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.revenue}
+                      onChange={() => toggleTrendline('revenue')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={revenueTrendData}>
                     <defs>
-                      <linearGradient id="colorTTM" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                       </linearGradient>
                     </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip />
-                    <Area type="monotone" dataKey="ttmRevenue" stroke="#3b82f6" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} name="Revenue" />
+                    {showTrendlines.revenue && (
+                      <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">GMV: EU vs Outside EU</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="colorEU" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="colorOutsideEU" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `${value.toFixed(0)}%`}
+                    />
+                    <Legend />
+                    <Area type="monotone" dataKey="gmvEU" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEU)" strokeWidth={2} name="GMV EU %" />
+                    <Area type="monotone" dataKey="gmvOutsideEU" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorOutsideEU)" strokeWidth={2} name="GMV Outside EU %" />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* 7. Marketing Spend vs Revenue */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  Marketing Spend vs Revenue
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip />
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Properties Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.properties}
+                      onChange={() => toggleTrendline('properties')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={propertiesTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                    />
+                    <Line type="monotone" dataKey="properties" stroke="#f97316" strokeWidth={3} dot={{ fill: '#f97316', r: 5 }} name="Properties" />
+                    {showTrendlines.properties && (
+                      <Line type="monotone" dataKey="properties_trend" stroke="#c2410c" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Bookings & Users</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.bookings}
+                      onChange={() => toggleTrendline('bookings')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={bookingsTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis yAxisId="left" stroke="#64748b" />
+                    <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                    />
                     <Legend />
-                    <Bar dataKey="marketingSpend" fill="#059669" name="Marketing Spend" />
-                    <Bar dataKey="revenueTotal" fill="#ec4899" name="Revenue" />
+                    <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} name="Bookings" />
+                    {showTrendlines.bookings && (
+                      <Line yAxisId="left" type="monotone" dataKey="bookings_trend" stroke="#6b21a8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Bookings Trend" />
+                    )}
+                    <Line yAxisId="right" type="monotone" dataKey="users" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b' }} name="Users" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">Trailing 12-Month Revenue</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.ttm}
+                      onChange={() => toggleTrendline('ttm')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <ComposedChart data={ttmTrendData}>
+                    <defs>
+                      <linearGradient id="colorTTM" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} name="TTM Revenue" />
+                    {showTrendlines.ttm && (
+                      <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
+                  </ComposedChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <h3 className="text-lg font-semibold text-slate-900 mb-4">Marketing Spend vs Revenue</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Legend />
+                    <Bar dataKey="marketingSpend" fill="#ef4444" radius={[8, 8, 0, 0]} name="Marketing Spend" />
+                    <Bar dataKey="revenueTotal" fill="#10b981" radius={[8, 8, 0, 0]} name="Revenue" />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* 8. NPS Trend */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  NPS Score Trend
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" domain={[0, 100]} />
-                    <Tooltip />
-                    <Line type="monotone" dataKey="nps" stroke="#f59e0b" strokeWidth={2} name="NPS" />
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">NPS Score Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.nps}
+                      onChange={() => toggleTrendline('nps')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={npsTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" domain={[0, 100]} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                    />
+                    <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={3} dot={{ fill: '#eab308', r: 5 }} name="NPS Score" />
+                    {showTrendlines.nps && (
+                      <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* 9. CAC Trend */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  CAC Trend
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip />
-                    <Line type="monotone" dataKey={(item) => item.marketingSpend > 0 ? item.marketingSpend / Math.max(1, item.users - 1000) : 0} stroke="#ef4444" strokeWidth={2} name="CAC" />
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">CAC Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.cac}
+                      onChange={() => toggleTrendline('cac')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={cacTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Line type="monotone" dataKey="cac" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 5 }} name="CAC" />
+                    {showTrendlines.cac && (
+                      <Line type="monotone" dataKey="cac_trend" stroke="#991b1b" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
 
-              {/* 10. LTV Trend */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #e5e5e0',
-                borderRadius: '8px',
-                padding: '24px',
-                boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)'
-              }}>
-                <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#1a1a1a', marginBottom: '16px', margin: '0 0 16px 0' }}>
-                  LTV Trend
-                </h4>
-                <ResponsiveContainer width="100%" height={280}>
-                  <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="date" stroke="#9a9a9a" />
-                    <YAxis stroke="#9a9a9a" />
-                    <Tooltip />
-                    <Line type="monotone" dataKey={(item) => item.users > 0 ? item.revenueTotal / item.users : 0} stroke="#059669" strokeWidth={2} name="LTV" />
+              <div className="bg-white rounded-xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-slate-900">LTV Trend</h3>
+                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={showTrendlines.ltv}
+                      onChange={() => toggleTrendline('ltv')}
+                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    Trendline
+                  </label>
+                </div>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={ltvTrendData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="date" stroke="#64748b" />
+                    <YAxis stroke="#64748b" />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
+                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
+                    />
+                    <Line type="monotone" dataKey="ltv" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 5 }} name="LTV" />
+                    {showTrendlines.ltv && (
+                      <Line type="monotone" dataKey="ltv_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
+                    )}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -1156,122 +1248,42 @@ export default function InvestorDashboard() {
   );
 }
 
-const ICON_MAP = {
-  'Total GMV': 'fa-dollar-sign',
-  'Total Revenue': 'fa-dollar-sign',
-  'TTM Revenue': 'fa-dollar-sign',
-  'Avg Booking Value': 'fa-bullseye',
-  'Rental Revenue/Booking': 'fa-dollar-sign',
-  'Services Revenue/Booking': 'fa-dollar-sign',
-  'Rental Take Rate': 'fa-percent',
-  'Services Take Rate': 'fa-percent',
-  'GMV EU': 'fa-dollar-sign',
-  'GMV Outside EU': 'fa-dollar-sign',
-  'Live Properties': 'fa-home',
-  'Total Bookings': 'fa-shopping-cart',
-  'Nights Booked': 'fa-calendar',
-  'Total Users': 'fa-users',
-  'NPS Score': 'fa-star',
-  'Customer Acquisition Cost': 'fa-dollar-sign',
-  'Lifetime Value': 'fa-dollar-sign',
-  'LTV / CAC Ratio': 'fa-bullseye',
-  'Payback Period': 'fa-calendar',
-  'Marketing Spend': 'fa-dollar-sign',
-  'Marketing Efficiency': 'fa-chart-line',
-  'Cash Position': 'fa-dollar-sign',
-  'Runway': 'fa-calendar'
-};
+function KPICard({ title, value, growth, icon, color, invertGrowth = false, subtitle, isPercentage = false }) {
+  const colorClasses = {
+    blue: 'bg-blue-50 text-blue-600',
+    green: 'bg-green-50 text-green-600',
+    purple: 'bg-purple-50 text-purple-600',
+    indigo: 'bg-indigo-50 text-indigo-600',
+    red: 'bg-red-50 text-red-600',
+    orange: 'bg-orange-50 text-orange-600',
+    yellow: 'bg-yellow-50 text-yellow-600'
+  };
 
-function KPICard({ title, value, growth, subtitle }) {
-  const isPositive = growth > 0;
+  const isPositive = invertGrowth ? growth < 0 : growth > 0;
   const showGrowth = growth !== null && growth !== undefined;
-  const icon = ICON_MAP[title] || '◆';
 
   return (
-    <div
-      style={{
-        background: 'white',
-        border: '1px solid #e5e5e0',
-        borderRadius: '8px',
-        padding: '22px',
-        transition: 'all 0.2s',
-        boxShadow: '0 1px 2px rgba(0, 0, 0, 0.02)',
-        cursor: 'pointer'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#d0ccc0';
-        e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.08)';
-        e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#e5e5e0';
-        e.currentTarget.style.boxShadow = '0 1px 2px rgba(0, 0, 0, 0.02)';
-        e.currentTarget.style.transform = 'translateY(0)';
-      }}
-    >
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'flex-start',
-        marginBottom: '8px'
-      }}>
-        <i style={{ fontSize: '16px', color: '#A28D50', opacity: 0.8 }} className={`fas ${icon}`}></i>
+    <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-4">
+        <div className={`${colorClasses[color]} p-3 rounded-lg`}>
+          {icon}
+        </div>
         {showGrowth && (
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            fontSize: '12px',
-            fontWeight: '600',
-            color: isPositive ? '#059669' : '#dc2626',
-            background: isPositive ? '#f0fdf4' : '#fef2f2',
-            padding: '4px 8px',
-            borderRadius: '6px',
-            border: isPositive ? '1px solid #dcfce7' : '1px solid #fee2e2'
-          }}>
-            {isPositive ? '↑' : '↓'} {Math.abs(growth).toFixed(1)}%
+          <div className={`flex items-center gap-1 text-sm font-semibold ${
+            isPositive ? 'text-green-600' : 'text-red-600'
+          }`}>
+            {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+            {isPercentage ? `${Math.abs(growth).toFixed(1)}pp` : `${Math.abs(growth).toFixed(1)}%`}
           </div>
         )}
       </div>
-      <h4 style={{
-        fontSize: '12px',
-        color: '#6b6b6b',
-        marginBottom: '6px',
-        margin: 0,
-        textTransform: 'uppercase',
-        letterSpacing: '0.4px',
-        fontWeight: '500'
-      }}>
-        {title}
-      </h4>
-      <p className="metric-value" style={{
-        fontSize: '27px',
-        fontWeight: '700',
-        color: '#1a1a1a',
-        margin: 0,
-        marginTop: '4px'
-      }}>
-        {value}
-      </p>
-      {!showGrowth && subtitle && (
-        <p style={{
-          fontSize: '12px',
-          color: '#9a9a9a',
-          margin: 0,
-          marginTop: '4px'
-        }}>
-          {subtitle}
-        </p>
-      )}
+      <h3 className="text-slate-600 text-sm font-medium mb-1">{title}</h3>
+      <p className="text-3xl font-bold text-slate-900">{value}</p>
       {showGrowth && (
-        <p style={{
-          fontSize: '12px',
-          color: '#9a9a9a',
-          margin: 0,
-          marginTop: '4px'
-        }}>
-          vs previous period
-        </p>
+        <p className="text-xs text-slate-500 mt-2">vs same period last year</p>
+      )}
+      {subtitle && !showGrowth && (
+        <p className="text-xs text-slate-500 mt-2">{subtitle}</p>
       )}
     </div>
   );
