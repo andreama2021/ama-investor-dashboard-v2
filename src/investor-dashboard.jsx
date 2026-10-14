@@ -181,9 +181,12 @@ export default function InvestorDashboard() {
       prevEndDateStr = '2022-12-31';
 
     } else if (period === 'lastMonth') {
-      // Find last data point to determine "last month"
-      if (data.length > 0) {
-        const lastDataDate = data[data.length - 1].date;
+      // Find last full month of the SELECTED year (not the entire dataset)
+      const yearStr = String(selectedYear);
+      const yearData = data.filter(item => item.date.startsWith(yearStr));
+
+      if (yearData.length > 0) {
+        const lastDataDate = yearData[yearData.length - 1].date;
         const [year, month] = lastDataDate.split('-');
         startDateStr = `${year}-${month}-01`;
         endDateStr = `${year}-${month}-31`;
@@ -224,15 +227,22 @@ export default function InvestorDashboard() {
       prevEndDateStr = `${selectedYear - 1}-12-31`;
 
     } else if (period === 'custom' && customStartDate && customEndDate) {
+      // For custom ranges, compare to same dates year-ago
       startDateStr = customStartDate;
       endDateStr = customEndDate;
+
+      // Extract year, month, day from start and end dates
       const [cyear, cmonth, cday] = customStartDate.split('-');
-      const pyear = parseInt(cyear) - 1;
-      prevStartDateStr = `${pyear}-${cmonth}-${cday}`;
       const [eyear, emonth, eday] = customEndDate.split('-');
+
+      // Calculate previous year's dates (same month/day, one year earlier)
+      const pyear = parseInt(cyear) - 1;
       const peyear = parseInt(eyear) - 1;
+
+      prevStartDateStr = `${pyear}-${cmonth}-${cday}`;
       prevEndDateStr = `${peyear}-${emonth}-${eday}`;
     } else {
+      // Default to full year
       startDateStr = `${selectedYear}-01-01`;
       endDateStr = `${selectedYear}-12-31`;
       prevStartDateStr = `${selectedYear - 1}-01-01`;
@@ -243,13 +253,23 @@ export default function InvestorDashboard() {
     const current = data.filter(item => item.date >= startDateStr && item.date <= endDateStr);
     const previous = data.filter(item => item.date >= prevStartDateStr && item.date <= prevEndDateStr);
 
-    console.log(`Filtered (${period}):`, {
-      startDateStr,
-      endDateStr,
-      currentCount: current.length,
-      previousCount: previous.length,
-      currentRevenue: current.reduce((s, i) => s + i.revenueTotal, 0),
-      previousRevenue: previous.reduce((s, i) => s + i.revenueTotal, 0)
+    // Enhanced console logging for debugging - shows exact date ranges and what was found
+    const currentRevenue = current.reduce((s, i) => s + i.revenueTotal, 0);
+    const previousRevenue = previous.reduce((s, i) => s + i.revenueTotal, 0);
+    const growthCalc = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
+
+    console.log(`\n✅ PERIOD: ${period.toUpperCase()} | YEAR: ${selectedYear}`, {
+      current_range: `${startDateStr} → ${endDateStr}`,
+      current_count: `${current.length} items`,
+      current_revenue: `$${currentRevenue.toLocaleString()}`,
+      current_dates: current.length > 0 ? `${current[0].date} to ${current[current.length - 1].date}` : 'NO DATA',
+      '---': '---',
+      previous_range: `${prevStartDateStr} → ${prevEndDateStr}`,
+      previous_count: `${previous.length} items`,
+      previous_revenue: `$${previousRevenue.toLocaleString()}`,
+      previous_dates: previous.length > 0 ? `${previous[0].date} to ${previous[previous.length - 1].date}` : 'NO DATA',
+      '---2': '---',
+      growth_pct: `${growthCalc.toFixed(2)}%`
     });
 
     return { current, previous };
