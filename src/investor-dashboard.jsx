@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area, ComposedChart } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Calendar, Users, ShoppingCart, Star, Target, Home, Percent } from 'lucide-react';
 
-// ============================================
-// CONFIGURATION - UPDATE THESE VALUES
-// ============================================
 const CONFIG = {
   GOOGLE_SHEETS_API_KEY: 'AIzaSyDIBaFUl9Ah07lz5xvOcBsMcaDnekM8EDM',
   SPREADSHEET_ID: '10Gmt0gVyqNhnRuRsoSPn20OnK6mbnYB3vulS9wWJkEs',
@@ -12,9 +8,6 @@ const CONFIG = {
   ACCESS_PIN: '2026'
 };
 
-// ============================================
-// HELPER FUNCTION - LINEAR REGRESSION
-// ============================================
 const calculateTrendline = (data, dataKey) => {
   if (!data || data.length === 0) return [];
 
@@ -43,9 +36,6 @@ const calculateTrendline = (data, dataKey) => {
   }));
 };
 
-// ============================================
-// MAIN APP COMPONENT
-// ============================================
 export default function InvestorDashboard() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [pinInput, setPinInput] = useState('');
@@ -57,8 +47,6 @@ export default function InvestorDashboard() {
   const [selectedYear, setSelectedYear] = useState(2026);
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
-
-  // Trendline toggles for each chart
   const [showTrendlines, setShowTrendlines] = useState({
     gmv: false,
     revenue: false,
@@ -78,6 +66,26 @@ export default function InvestorDashboard() {
   };
 
   useEffect(() => {
+    let link = document.querySelector("link[rel='icon']");
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'icon';
+      document.head.appendChild(link);
+    }
+    link.href = '/Logo_A_icon.jpg';
+
+    if (!document.getElementById('fa-css')) {
+      const fa = document.createElement('link');
+      fa.id = 'fa-css';
+      fa.rel = 'stylesheet';
+      fa.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css';
+      document.head.appendChild(fa);
+      const f = document.createElement('link');
+      f.rel = 'stylesheet';
+      f.href = 'https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap';
+      document.head.appendChild(f);
+    }
+
     const auth = sessionStorage.getItem('dashboard_auth');
     if (auth === 'true') {
       setIsAuthenticated(true);
@@ -173,7 +181,6 @@ export default function InvestorDashboard() {
       prevEndDateStr = '2022-12-31';
 
     } else if (period === 'lastMonth') {
-      // Find last full month of the SELECTED year (not the entire dataset)
       const yearStr = String(selectedYear);
       const yearData = data.filter(item => item.date.startsWith(yearStr));
 
@@ -219,33 +226,27 @@ export default function InvestorDashboard() {
       prevEndDateStr = `${selectedYear - 1}-12-31`;
 
     } else if (period === 'custom' && customStartDate && customEndDate) {
-      // For custom ranges, compare to same dates year-ago
       startDateStr = customStartDate;
       endDateStr = customEndDate;
 
-      // Extract year, month, day from start and end dates
       const [cyear, cmonth, cday] = customStartDate.split('-');
       const [eyear, emonth, eday] = customEndDate.split('-');
 
-      // Calculate previous year's dates (same month/day, one year earlier)
       const pyear = parseInt(cyear) - 1;
       const peyear = parseInt(eyear) - 1;
 
       prevStartDateStr = `${pyear}-${cmonth}-${cday}`;
       prevEndDateStr = `${peyear}-${emonth}-${eday}`;
     } else {
-      // Default to full year
       startDateStr = `${selectedYear}-01-01`;
       endDateStr = `${selectedYear}-12-31`;
       prevStartDateStr = `${selectedYear - 1}-01-01`;
       prevEndDateStr = `${selectedYear - 1}-12-31`;
     }
 
-    // String-based date comparison (YYYY-MM-DD format is sortable)
     const current = data.filter(item => item.date >= startDateStr && item.date <= endDateStr);
     const previous = data.filter(item => item.date >= prevStartDateStr && item.date <= prevEndDateStr);
 
-    // Enhanced console logging for debugging - shows exact date ranges and what was found
     const currentRevenue = current.reduce((s, i) => s + i.revenueTotal, 0);
     const previousRevenue = previous.reduce((s, i) => s + i.revenueTotal, 0);
     const growthCalc = previousRevenue > 0 ? ((currentRevenue - previousRevenue) / previousRevenue) * 100 : 0;
@@ -254,13 +255,9 @@ export default function InvestorDashboard() {
       current_range: `${startDateStr} → ${endDateStr}`,
       current_count: `${current.length} items`,
       current_revenue: `$${currentRevenue.toLocaleString()}`,
-      current_dates: current.length > 0 ? `${current[0].date} to ${current[current.length - 1].date}` : 'NO DATA',
-      '---': '---',
       previous_range: `${prevStartDateStr} → ${prevEndDateStr}`,
       previous_count: `${previous.length} items`,
       previous_revenue: `$${previousRevenue.toLocaleString()}`,
-      previous_dates: previous.length > 0 ? `${previous[0].date} to ${previous[previous.length - 1].date}` : 'NO DATA',
-      '---2': '---',
       growth_pct: `${growthCalc.toFixed(2)}%`
     });
 
@@ -272,29 +269,12 @@ export default function InvestorDashboard() {
 
     if (current.length === 0) {
       return {
-        totalGMV: 0,
-        totalRevenue: 0,
-        totalBookings: 0,
-        totalNights: 0,
-        avgBookingValue: 0,
-        rentalRevenuePerBooking: 0,
-        servicesRevenuePerBooking: 0,
-        rentalTakeRate: 0,
-        servicesTakeRate: 0,
-        currentUsers: 0,
-        avgNPS: 0,
-        totalMarketingSpend: 0,
-        marketingEfficiency: 0,
-        currentCash: 0,
-        latestTTM: 0,
-        runway: 0,
-        avgGmvEU: 0,
-        avgGmvOutsideEU: 0,
-        currentProperties: 0,
-        avgCAC: 0,
-        avgLTV: 0,
-        ltvCacRatio: 0,
-        paybackPeriod: 0,
+        totalGMV: 0, totalRevenue: 0, totalBookings: 0, avgBookingValue: 0,
+        rentalRevenuePerBooking: 0, servicesRevenuePerBooking: 0, rentalTakeRate: 0,
+        servicesTakeRate: 0, currentUsers: 0, avgNPS: 0, totalMarketingSpend: 0,
+        marketingEfficiency: 0, currentCash: 0, latestTTM: 0, runway: 0,
+        avgGmvEU: 0, avgGmvOutsideEU: 0, currentProperties: 0, avgCAC: 0,
+        avgLTV: 0, ltvCacRatio: 0, paybackPeriod: 0, totalNights: 0,
         growth: {}
       };
     }
@@ -308,17 +288,13 @@ export default function InvestorDashboard() {
     const totalBookings = current.reduce((sum, item) => sum + item.bookings, 0);
     const totalNights = current.reduce((sum, item) => sum + item.nights, 0);
 
-    // FIX 1: Average Booking Value - Use total GMV / total bookings
     const avgBookingValue = totalBookings > 0 ? totalGMV / totalBookings : 0;
-
     const rentalRevenuePerBooking = totalBookings > 0 ? totalRevenueRentals / totalBookings : 0;
     const servicesRevenuePerBooking = totalBookings > 0 ? totalRevenueServices / totalBookings : 0;
     const rentalTakeRate = totalGMVRentals > 0 ? (totalRevenueRentals / totalGMVRentals) * 100 : 0;
     const servicesTakeRate = totalGMVServices > 0 ? (totalRevenueServices / totalGMVServices) * 100 : 0;
 
     const currentUsers = current[current.length - 1]?.users || 0;
-
-    // FIX: NPS - Use weighted average by response count
     const totalNPSResponses = current.reduce((sum, item) => sum + item.npsCount, 0);
     const weightedNPSSum = current.reduce((sum, item) => sum + (item.nps * item.npsCount), 0);
     const avgNPS = totalNPSResponses > 0 ? weightedNPSSum / totalNPSResponses : 0;
@@ -328,71 +304,49 @@ export default function InvestorDashboard() {
     const currentCash = current[current.length - 1]?.cashPosition || 0;
     const latestTTM = current[current.length - 1]?.ttmRevenue || 0;
 
-    // Get previous period's TTM
-    const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
-
-    // FIX 2: GMV EU % - Use weighted average by GMV
     const totalGMVEU = current.reduce((sum, item) => sum + (item.gmvTotal * item.gmvEU / 100), 0);
     const avgGmvEU = totalGMV > 0 ? (totalGMVEU / totalGMV) * 100 : 0;
     const avgGmvOutsideEU = 100 - avgGmvEU;
 
     const currentProperties = current[current.length - 1]?.properties || 0;
     const avgCAC = current.reduce((sum, item) => sum + item.cac, 0) / current.length;
-
-    // FIX 3: Use most recent month's value for Avg Bookings Per Customer
     const avgBookingsPerCustomer = current[current.length - 1]?.avgBookingsPerCustomer || 0;
-
-    // FIX 4: Gross Margin - Use revenue-weighted average
     const avgGrossMargin = totalRevenue > 0
       ? current.reduce((sum, item) => sum + (item.revenueTotal * item.grossMargin), 0) / totalRevenue
       : 0;
 
-    // LTV Calculation
     const avgLTV = avgBookingValue * avgGrossMargin * avgBookingsPerCustomer;
-
-    // LTV/CAC Ratio
     const ltvCacRatio = avgCAC > 0 ? avgLTV / avgCAC : 0;
-
-    // Payback Period (in number of bookings)
     const grossProfitPerBooking = avgBookingValue * avgGrossMargin;
     const paybackPeriod = grossProfitPerBooking > 0 ? avgCAC / grossProfitPerBooking : 0;
 
-    // Hard-coded runway: months until end of March 2028
     let runway;
     if (current.length > 0) {
       const lastDate = new Date(current[current.length - 1].date);
-      const endOfRunway = new Date(2028, 2, 31); // March 31, 2028
-
-      // Calculate months difference
+      const endOfRunway = new Date(2028, 2, 31);
       const monthsDiff = (endOfRunway.getFullYear() - lastDate.getFullYear()) * 12 +
                          (endOfRunway.getMonth() - lastDate.getMonth()) + 1;
-
       runway = monthsDiff > 0 ? monthsDiff : 0;
     } else {
       runway = 0;
     }
 
-    // PREVIOUS PERIOD - Apply same fixes
     const prevTotalGMV = previous.reduce((sum, item) => sum + item.gmvTotal, 0);
-    const prevTotalGMVRentals = previous.reduce((sum, item) => sum + item.gmvRentals, 0);
-    const prevTotalGMVServices = previous.reduce((sum, item) => sum + item.gmvServices, 0);
     const prevTotalRevenue = previous.reduce((sum, item) => sum + item.revenueTotal, 0);
-    const prevTotalRevenueRentals = previous.reduce((sum, item) => sum + item.revenueRentals, 0);
-    const prevTotalRevenueServices = previous.reduce((sum, item) => sum + item.revenueServices, 0);
     const prevTotalBookings = previous.reduce((sum, item) => sum + item.bookings, 0);
     const prevTotalNights = previous.reduce((sum, item) => sum + item.nights, 0);
+    const prevTotalGMVRentals = previous.reduce((sum, item) => sum + item.gmvRentals, 0);
+    const prevTotalGMVServices = previous.reduce((sum, item) => sum + item.gmvServices, 0);
+    const prevTotalRevenueRentals = previous.reduce((sum, item) => sum + item.revenueRentals, 0);
+    const prevTotalRevenueServices = previous.reduce((sum, item) => sum + item.revenueServices, 0);
 
-    // FIX 1 (Previous): Average Booking Value
     const prevAvgBookingValue = prevTotalBookings > 0 ? prevTotalGMV / prevTotalBookings : 0;
-
     const prevRentalRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueRentals / prevTotalBookings : 0;
     const prevServicesRevenuePerBooking = prevTotalBookings > 0 ? prevTotalRevenueServices / prevTotalBookings : 0;
     const prevRentalTakeRate = prevTotalGMVRentals > 0 ? (prevTotalRevenueRentals / prevTotalGMVRentals) * 100 : 0;
     const prevServicesTakeRate = prevTotalGMVServices > 0 ? (prevTotalRevenueServices / prevTotalGMVServices) * 100 : 0;
 
     const prevUsers = previous[previous.length - 1]?.users || 0;
-
-    // FIX (Previous): NPS - Use weighted average
     const prevTotalNPSResponses = previous.reduce((sum, item) => sum + item.npsCount, 0);
     const prevWeightedNPSSum = previous.reduce((sum, item) => sum + (item.nps * item.npsCount), 0);
     const prevAvgNPS = prevTotalNPSResponses > 0 ? prevWeightedNPSSum / prevTotalNPSResponses : 0;
@@ -400,24 +354,20 @@ export default function InvestorDashboard() {
     const prevTotalMarketingSpend = previous.reduce((sum, item) => sum + item.marketingSpend, 0);
     const prevMarketingEfficiency = prevTotalMarketingSpend > 0 ? (prevTotalRevenue / prevTotalMarketingSpend) * 100 : 0;
 
-    // FIX 2 (Previous): GMV EU %
     const prevTotalGMVEU = previous.length > 0 ? previous.reduce((sum, item) => sum + (item.gmvTotal * item.gmvEU / 100), 0) : 0;
     const prevAvgGmvEU = prevTotalGMV > 0 ? (prevTotalGMVEU / prevTotalGMV) * 100 : 0;
     const prevAvgGmvOutsideEU = 100 - prevAvgGmvEU;
 
     const prevProperties = previous[previous.length - 1]?.properties || 0;
     const prevAvgCAC = previous.length > 0 ? previous.reduce((sum, item) => sum + item.cac, 0) / previous.length : 0;
-
-    // FIX 3 (Previous): Use most recent month's value
     const prevAvgBookingsPerCustomer = previous[previous.length - 1]?.avgBookingsPerCustomer || 0;
-
-    // FIX 4 (Previous): Gross Margin
     const prevAvgGrossMargin = prevTotalRevenue > 0
       ? previous.reduce((sum, item) => sum + (item.revenueTotal * item.grossMargin), 0) / prevTotalRevenue
       : 0;
 
     const prevAvgLTV = prevAvgBookingValue * prevAvgGrossMargin * prevAvgBookingsPerCustomer;
     const prevLtvCacRatio = prevAvgCAC > 0 ? prevAvgLTV / prevAvgCAC : 0;
+    const prevLatestTTM = previous[previous.length - 1]?.ttmRevenue || 0;
     const prevGrossProfitPerBooking = prevAvgBookingValue * prevAvgGrossMargin;
     const prevPaybackPeriod = prevGrossProfitPerBooking > 0 ? prevAvgCAC / prevGrossProfitPerBooking : 0;
 
@@ -427,30 +377,12 @@ export default function InvestorDashboard() {
     };
 
     return {
-      totalGMV,
-      totalRevenue,
-      totalBookings,
-      totalNights,
-      avgBookingValue,
-      rentalRevenuePerBooking,
-      servicesRevenuePerBooking,
-      rentalTakeRate,
-      servicesTakeRate,
-      currentUsers,
-      avgNPS,
-      totalMarketingSpend,
-      marketingEfficiency,
-      currentCash,
-      latestTTM,
-      runway,
-      avgGmvEU,
-      avgGmvOutsideEU,
-      currentProperties,
-      avgCAC,
-      avgLTV,
-      ltvCacRatio,
-      paybackPeriod,
-      growth: {
+      totalGMV, totalRevenue, totalBookings, totalNights, avgBookingValue,
+      rentalRevenuePerBooking, servicesRevenuePerBooking, rentalTakeRate,
+      servicesTakeRate, currentUsers, avgNPS, totalMarketingSpend, marketingEfficiency,
+      currentCash, latestTTM, runway, avgGmvEU, avgGmvOutsideEU, currentProperties,
+      avgCAC, avgLTV, ltvCacRatio, paybackPeriod,
+      growth: previous.length === 0 ? {} : {
         gmv: calculateGrowth(totalGMV, prevTotalGMV),
         revenue: calculateGrowth(totalRevenue, prevTotalRevenue),
         bookings: calculateGrowth(totalBookings, prevTotalBookings),
@@ -469,52 +401,34 @@ export default function InvestorDashboard() {
         cac: calculateGrowth(avgCAC, prevAvgCAC),
         ltv: calculateGrowth(avgLTV, prevAvgLTV),
         ltvCacRatio: calculateGrowth(ltvCacRatio, prevLtvCacRatio),
-        paybackPeriod: calculateGrowth(paybackPeriod, prevPaybackPeriod),
-        ttm: calculateGrowth(latestTTM, prevLatestTTM)
+        ttm: calculateGrowth(latestTTM, prevLatestTTM),
+        paybackPeriod: calculateGrowth(paybackPeriod, prevPaybackPeriod)
       }
     };
   };
 
+  const GOLD = '#A28D50';
+  const FONT = "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif";
+  const card = { background: 'white', border: '1px solid #e5e5e0', borderRadius: 8, padding: 24, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' };
+  const tip = { backgroundColor: '#fff', border: '1px solid #e5e5e0', borderRadius: 8 };
+  const money = (v) => `$${v.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
+  const compact = (v) => v >= 1000000 ? `$${(v / 1000000).toFixed(2)}M` : v >= 1000 ? `$${(v / 1000).toFixed(1)}K` : `$${v.toFixed(0)}`;
+
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 bg-white">
-              <img
-                src="/Logo_A_icon.jpg"
-                alt="A.M.A Selections"
-                className="w-14 h-14 object-contain"
-              />
-            </div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">A.M.A Selections</h1>
-            <p className="text-slate-600">Investor Dashboard</p>
-            <p className="text-slate-500 text-sm mt-2">Enter PIN to access</p>
+      <div style={{ minHeight: '100vh', background: '#f5f5f5', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, fontFamily: FONT }}>
+        <div style={{ background: 'white', borderRadius: 16, boxShadow: '0 4px 24px rgba(0,0,0,0.08)', border: '1px solid #e5e5e0', padding: 40, width: '100%', maxWidth: 448 }}>
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <img src="/Logo_A_icon.jpg" alt="A.M.A Selections" style={{ width: 64, height: 64, objectFit: 'contain', margin: '0 auto 16px', display: 'block' }} />
+            <h1 style={{ fontSize: 28, fontWeight: 700, color: '#1a1a1a', margin: '0 0 8px' }}>A.M.A Selections</h1>
+            <p style={{ color: '#6b6b6b', margin: '0 0 8px' }}>Investor Dashboard</p>
+            <p style={{ fontSize: 13, color: '#9a9a9a', margin: 0 }}>Enter PIN to access</p>
           </div>
-
           <form onSubmit={handlePinSubmit}>
-            <input
-              type="password"
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-              placeholder="Enter PIN"
-              className="w-full px-4 py-3 border-2 border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none text-center text-2xl tracking-widest mb-4"
-              maxLength="6"
-              autoFocus
-            />
-
-            {pinError && (
-              <div className="bg-red-50 text-red-600 px-4 py-2 rounded-lg mb-4 text-sm text-center">
-                Incorrect PIN. Please try again.
-              </div>
-            )}
-
-            <button
-              type="submit"
-              className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 rounded-lg transition-colors"
-            >
-              Access Dashboard
-            </button>
+            <input type="password" value={pinInput} onChange={(e) => setPinInput(e.target.value)} placeholder="Enter PIN" maxLength="6" autoFocus
+              style={{ width: '100%', boxSizing: 'border-box', padding: '12px 16px', border: `2px solid ${GOLD}`, borderRadius: 8, fontSize: 22, textAlign: 'center', letterSpacing: 4, marginBottom: 16, outline: 'none', fontFamily: FONT }} />
+            {pinError && <div style={{ background: '#fef2f2', color: '#dc2626', padding: '8px 16px', borderRadius: 8, marginBottom: 16, fontSize: 13, textAlign: 'center' }}>Incorrect PIN. Please try again.</div>}
+            <button type="submit" style={{ width: '100%', background: GOLD, color: 'white', fontWeight: 600, padding: '12px 16px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 15, fontFamily: FONT }}>Access Dashboard</button>
           </form>
         </div>
       </div>
@@ -522,9 +436,14 @@ export default function InvestorDashboard() {
   }
 
   const metrics = data ? calculateMetrics() : null;
-  const { current: chartData } = data ? getFilteredData() : { current: [] };
-
-  // Calculate trendlines for all charts
+  const { current: filteredCurrent } = data ? getFilteredData() : { current: [] };
+  // "Last Full Month" is a single row, so charts show every month of the selected year up to it for context
+  const chartData = (data && period === 'lastMonth' && selectedYear !== 'lifetime')
+    ? data.filter(item => item.date.startsWith(String(selectedYear)))
+    : filteredCurrent;
+  const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const fmtAxis = (v) => Math.abs(v) >= 1000000 ? `${+(v / 1000000).toFixed(1)}M` : Math.abs(v) >= 10000 ? `${Math.round(v / 1000)}K` : v;
+  const fmtDate = (d) => (d && d.length >= 7) ? `${MONTHS[parseInt(d.slice(5, 7), 10) - 1]} ${d.slice(2, 4)}` : d;
   const gmvTrendData = calculateTrendline(chartData, 'gmvTotal');
   const revenueTrendData = calculateTrendline(chartData, 'revenueTotal');
   const propertiesTrendData = calculateTrendline(chartData, 'properties');
@@ -532,727 +451,247 @@ export default function InvestorDashboard() {
   const ttmTrendData = calculateTrendline(chartData, 'ttmRevenue');
   const npsTrendData = calculateTrendline(chartData, 'nps');
   const cacTrendData = calculateTrendline(chartData, 'cac');
-
-  // Calculate LTV for each row
-  const chartDataWithLTV = chartData.map(item => ({
-    ...item,
-    ltv: item.avgBookingValue * item.grossMargin * item.avgBookingsPerCustomer
-  }));
+  const chartDataWithLTV = chartData.map(item => ({ ...item, ltv: item.avgBookingValue * item.grossMargin * item.avgBookingsPerCustomer }));
   const ltvTrendData = calculateTrendline(chartDataWithLTV, 'ltv');
 
+  const filterBtn = (active, disabled) => ({
+    padding: '8px 14px', background: active ? GOLD : 'transparent', color: active ? 'white' : '#6b6b6b',
+    border: `1px solid ${active ? GOLD : '#d9d7ce'}`, borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.5 : 1, fontSize: 13, fontWeight: 500, fontFamily: FONT
+  });
+  const periods = [['lastMonth', 'Last Full Month'], ['Q1', 'Q1'], ['Q2', 'Q2'], ['Q3', 'Q3'], ['Q4', 'Q4'], ['fullYear', 'Full Year'], ['custom', 'Custom Range']];
+  const sectionTitle = { fontSize: 16, fontWeight: 600, color: '#1a1a1a', margin: '0 0 16px' };
+  const grid = (min) => ({ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(${min}px, 1fr))`, gap: 16, marginBottom: 32 });
+
+  const ChartCard = ({ title, trendKey, children }) => (
+    <div style={card}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h4 style={{ fontSize: 13, fontWeight: 600, color: '#1a1a1a', margin: 0 }}>{title}</h4>
+        {trendKey && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b6b6b', cursor: 'pointer' }}>
+            <input type="checkbox" checked={showTrendlines[trendKey]} onChange={() => toggleTrendline(trendKey)} style={{ accentColor: GOLD }} /> Trendline
+          </label>
+        )}
+      </div>
+      <div style={{ height: 320 }}>{children}</div>
+    </div>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <img
-                src="/Logo_A_icon.jpg"
-                alt="A.M.A Selections"
-                className="w-10 h-10 object-contain"
-              />
-              <div>
-                <h1 className="text-2xl font-bold text-slate-900">A.M.A Selections</h1>
-                <p className="text-xs text-slate-500">Investor Dashboard</p>
-              </div>
+    <div style={{ fontFamily: FONT, background: '#f5f5f5', color: '#1a1a1a', minHeight: '100vh' }}>
+      <header style={{ background: 'white', borderBottom: '1px solid #e5e5e0', padding: '16px 48px', position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
+        <div style={{ maxWidth: 1440, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <img src="/Logo_A_icon.jpg" alt="A.M.A Selections" style={{ width: 40, height: 40, objectFit: 'contain' }} />
+            <div>
+              <h1 style={{ fontSize: 16, fontWeight: 600, margin: 0 }}>A.M.A Selections</h1>
+              <p style={{ fontSize: 11, color: '#9a9a9a', margin: '2px 0 0' }}>Investor Dashboard</p>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 text-sm text-slate-600 hover:text-slate-900 font-medium"
-            >
-              Logout
-            </button>
+          </div>
+          <button onClick={handleLogout} style={{ padding: '8px 16px', background: 'transparent', color: '#6b6b6b', border: '1px solid #d9d7ce', borderRadius: 6, cursor: 'pointer', fontSize: 13, fontWeight: 500, fontFamily: FONT }}>
+            <i className="fas fa-arrow-right-from-bracket" style={{ marginRight: 6 }}></i>Logout
+          </button>
+        </div>
+      </header>
+
+      <div style={{ maxWidth: 1440, margin: '0 auto', padding: '32px 48px 0' }}>
+        <h2 style={{ fontSize: 32, fontWeight: 600, margin: '0 0 32px' }}>Investor Dashboard</h2>
+      </div>
+
+      <div style={{ background: 'white', borderBottom: '1px solid #e5e5e0', position: 'sticky', top: 73, zIndex: 40, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+        <div style={{ maxWidth: 1440, margin: '0 auto', padding: '20px 48px', display: 'flex', gap: 40, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Select Year</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[2023, 2024, 2025, 2026, 'lifetime'].map(y => (
+                <button key={y} onClick={() => setSelectedYear(y)} style={filterBtn(selectedYear === y, false)}>{y === 'lifetime' ? 'Lifetime' : y}</button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 12 }}>Select Period</label>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {periods.map(([key, label]) => (
+                <button key={key} onClick={() => setPeriod(key)} disabled={selectedYear === 'lifetime'} style={filterBtn(period === key && selectedYear !== 'lifetime', selectedYear === 'lifetime')}>{label}</button>
+              ))}
+            </div>
+            {period === 'custom' && selectedYear !== 'lifetime' && (
+              <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                <input type="date" value={customStartDate} onChange={(e) => setCustomStartDate(e.target.value)} style={{ padding: '6px 10px', border: '1px solid #d9d7ce', borderRadius: 6, fontFamily: FONT }} />
+                <input type="date" value={customEndDate} onChange={(e) => setCustomEndDate(e.target.value)} style={{ padding: '6px 10px', border: '1px solid #d9d7ce', borderRadius: 6, fontFamily: FONT }} />
+              </div>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="bg-white rounded-xl shadow-sm p-6 mb-8">
-          <div className="flex items-center gap-2 mb-4">
-            <Calendar className="w-5 h-5 text-slate-600" />
-            <h2 className="text-lg font-semibold text-slate-900">Time Period</h2>
-          </div>
-
-          <div className="mb-3">
-            <p className="text-sm text-slate-600 mb-2">Select Year</p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setSelectedYear(2023)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedYear === 2023 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                2023
-              </button>
-              <button
-                onClick={() => setSelectedYear(2024)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedYear === 2024 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                2024
-              </button>
-              <button
-                onClick={() => setSelectedYear(2025)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedYear === 2025 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                2025
-              </button>
-              <button
-                onClick={() => setSelectedYear(2026)}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedYear === 2026 ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                2026
-              </button>
-              <button
-                onClick={() => setSelectedYear('lifetime')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  selectedYear === 'lifetime' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-              >
-                Lifetime
-              </button>
-            </div>
-          </div>
-
-          <div>
-            <p className="text-sm text-slate-600 mb-2">Select Period</p>
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => setPeriod('lastMonth')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === 'lastMonth' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-                disabled={selectedYear === 'lifetime'}
-              >
-                Last Full Month
-              </button>
-              <button
-                onClick={() => setPeriod('Q1')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === 'Q1' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-                disabled={selectedYear === 'lifetime'}
-              >
-                Q1
-              </button>
-              <button
-                onClick={() => setPeriod('Q2')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === 'Q2' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-                disabled={selectedYear === 'lifetime'}
-              >
-                Q2
-              </button>
-              <button
-                onClick={() => setPeriod('Q3')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === 'Q3' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-                disabled={selectedYear === 'lifetime'}
-              >
-                Q3
-              </button>
-              <button
-                onClick={() => setPeriod('Q4')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === 'Q4' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-                disabled={selectedYear === 'lifetime'}
-              >
-                Q4
-              </button>
-              <button
-                onClick={() => setPeriod('fullYear')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === 'fullYear' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-                disabled={selectedYear === 'lifetime'}
-              >
-                Full Year
-              </button>
-              <button
-                onClick={() => setPeriod('custom')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  period === 'custom' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                }`}
-                disabled={selectedYear === 'lifetime'}
-              >
-                Custom Range
-              </button>
-            </div>
-          </div>
-
-          {period === 'custom' && selectedYear !== 'lifetime' && (
-            <div className="flex gap-4 mt-4">
-              <input
-                type="date"
-                value={customStartDate}
-                onChange={(e) => setCustomStartDate(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
-              />
-              <input
-                type="date"
-                value={customEndDate}
-                onChange={(e) => setCustomEndDate(e.target.value)}
-                className="px-3 py-2 border border-slate-300 rounded-lg focus:border-amber-600 focus:outline-none"
-              />
-            </div>
-          )}
-        </div>
-
-        {loading && (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <div className="inline-block w-8 h-8 border-4 border-amber-600 border-t-transparent rounded-full animate-spin mb-4"></div>
-            <p className="text-slate-600">Loading data...</p>
-          </div>
-        )}
-
-        {error && (
-          <div className="bg-red-50 border border-red-200 rounded-xl p-6 mb-8">
-            <h3 className="text-red-800 font-semibold mb-2">Error Loading Data</h3>
-            <p className="text-red-600 text-sm mb-4">{error}</p>
-            <p className="text-red-600 text-sm">Please check your Google Sheets configuration in the code.</p>
-          </div>
-        )}
+      <div style={{ maxWidth: 1440, margin: '0 auto', padding: '32px 48px' }}>
+        {loading && <p>Loading data...</p>}
+        {error && <p style={{ color: '#dc2626' }}>Error: {error}</p>}
 
         {!loading && !error && metrics && (
           <>
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">Financial Performance</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                <KPICard
-                  title="Total GMV"
-                  value={`$${metrics.totalGMV.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.gmv}
-                  icon={<DollarSign className="w-6 h-6" />}
-                  color="blue"
-                />
-
-                <KPICard
-                  title="Total Revenue"
-                  value={`$${metrics.totalRevenue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.revenue}
-                  icon={<DollarSign className="w-6 h-6" />}
-                  color="green"
-                />
-
-                <KPICard
-                  title="TTM Revenue"
-                  value={`$${metrics.latestTTM.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.ttm}
-                  icon={<TrendingUp className="w-6 h-6" />}
-                  color="purple"
-                />
-              </div>
+            <h3 style={sectionTitle}>Financial Performance</h3>
+            <div style={grid(350)}>
+              <KPICard title="Total GMV" value={compact(metrics.totalGMV)} growth={metrics.growth.gmv} icon="fa-dollar-sign" />
+              <KPICard title="Total Revenue" value={compact(metrics.totalRevenue)} growth={metrics.growth.revenue} icon="fa-dollar-sign" />
+              <KPICard title="TTM Revenue" value={compact(metrics.latestTTM)} growth={metrics.growth.ttm} icon="fa-dollar-sign" />
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">Revenue Breakdown</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                <KPICard
-                  title="Avg Booking Value"
-                  value={`$${metrics.avgBookingValue.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.avgBookingValue}
-                  icon={<Target className="w-6 h-6" />}
-                  color="indigo"
-                />
-
-                <KPICard
-                  title="Rental Revenue/Booking"
-                  value={`$${metrics.rentalRevenuePerBooking.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.rentalRevenuePerBooking}
-                  icon={<DollarSign className="w-6 h-6" />}
-                  color="blue"
-                  subtitle="Basic villa bookings"
-                />
-
-                <KPICard
-                  title="Services Revenue/Booking"
-                  value={`$${metrics.servicesRevenuePerBooking.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.servicesRevenuePerBooking}
-                  icon={<DollarSign className="w-6 h-6" />}
-                  color="purple"
-                  subtitle="Concierge & add-ons"
-                />
-
-                <KPICard
-                  title="Rental Take Rate"
-                  value={`${metrics.rentalTakeRate.toFixed(1)}%`}
-                  growth={metrics.growth.rentalTakeRate}
-                  icon={<Percent className="w-6 h-6" />}
-                  color="green"
-                  isPercentage={true}
-                />
-
-                <KPICard
-                  title="Services Take Rate"
-                  value={`${metrics.servicesTakeRate.toFixed(1)}%`}
-                  growth={metrics.growth.servicesTakeRate}
-                  icon={<Percent className="w-6 h-6" />}
-                  color="orange"
-                  isPercentage={true}
-                />
-              </div>
+            <h3 style={sectionTitle}>Revenue Breakdown</h3>
+            <div style={grid(220)}>
+              <KPICard title="Avg Booking Value" value={money(metrics.avgBookingValue)} growth={metrics.growth.avgBookingValue} icon="fa-bullseye" />
+              <KPICard title="Rental Revenue/Booking" value={money(metrics.rentalRevenuePerBooking)} growth={metrics.growth.rentalRevenuePerBooking} icon="fa-dollar-sign" subtitle="Basic villa bookings" />
+              <KPICard title="Services Revenue/Booking" value={money(metrics.servicesRevenuePerBooking)} growth={metrics.growth.servicesRevenuePerBooking} icon="fa-dollar-sign" subtitle="Concierge & add-ons" />
+              <KPICard title="Rental Take Rate" value={`${metrics.rentalTakeRate.toFixed(1)}%`} growth={metrics.growth.rentalTakeRate} icon="fa-percent" isPercentage />
+              <KPICard title="Services Take Rate" value={`${metrics.servicesTakeRate.toFixed(1)}%`} growth={metrics.growth.servicesTakeRate} icon="fa-percent" isPercentage />
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">Geographic Split</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <KPICard
-                  title="GMV EU"
-                  value={`${metrics.avgGmvEU.toFixed(0)}%`}
-                  growth={metrics.growth.gmvEU}
-                  icon={<DollarSign className="w-6 h-6" />}
-                  color="blue"
-                  isPercentage={true}
-                />
-
-                <KPICard
-                  title="GMV Outside EU"
-                  value={`${metrics.avgGmvOutsideEU.toFixed(0)}%`}
-                  growth={metrics.growth.gmvOutsideEU}
-                  icon={<DollarSign className="w-6 h-6" />}
-                  color="purple"
-                  isPercentage={true}
-                />
-
-                <KPICard
-                  title="Live Properties"
-                  value={metrics.currentProperties.toFixed(0)}
-                  growth={metrics.growth.properties}
-                  icon={<Home className="w-6 h-6" />}
-                  color="orange"
-                />
-              </div>
+            <h3 style={sectionTitle}>Geographic Split</h3>
+            <div style={grid(280)}>
+              <KPICard title="GMV EU" value={`${metrics.avgGmvEU.toFixed(0)}%`} growth={metrics.growth.gmvEU} icon="fa-dollar-sign" isPercentage />
+              <KPICard title="GMV Outside EU" value={`${metrics.avgGmvOutsideEU.toFixed(0)}%`} growth={metrics.growth.gmvOutsideEU} icon="fa-dollar-sign" isPercentage />
+              <KPICard title="Live Properties" value={metrics.currentProperties.toLocaleString()} growth={metrics.growth.properties} icon="fa-home" />
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">Operations</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <KPICard
-                  title="Total Bookings"
-                  value={metrics.totalBookings.toLocaleString()}
-                  growth={metrics.growth.bookings}
-                  icon={<ShoppingCart className="w-6 h-6" />}
-                  color="blue"
-                />
-
-                <KPICard
-                  title="Nights Booked"
-                  value={metrics.totalNights.toLocaleString()}
-                  growth={metrics.growth.nights}
-                  icon={<Calendar className="w-6 h-6" />}
-                  color="orange"
-                />
-
-                <KPICard
-                  title="Total Users"
-                  value={metrics.currentUsers.toLocaleString()}
-                  growth={metrics.growth.users}
-                  icon={<Users className="w-6 h-6" />}
-                  color="purple"
-                />
-
-                <KPICard
-                  title="NPS Score"
-                  value={metrics.avgNPS.toFixed(0)}
-                  growth={metrics.growth.nps}
-                  icon={<Star className="w-6 h-6" />}
-                  color="yellow"
-                />
-              </div>
+            <h3 style={sectionTitle}>Operations</h3>
+            <div style={grid(240)}>
+              <KPICard title="Total Bookings" value={metrics.totalBookings.toLocaleString()} growth={metrics.growth.bookings} icon="fa-shopping-cart" />
+              <KPICard title="Nights Booked" value={metrics.totalNights.toLocaleString()} growth={metrics.growth.nights} icon="fa-calendar" />
+              <KPICard title="Total Users" value={metrics.currentUsers.toLocaleString()} growth={metrics.growth.users} icon="fa-users" />
+              <KPICard title="NPS Score" value={metrics.avgNPS.toFixed(0)} growth={metrics.growth.nps} icon="fa-star" />
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">Marketing & Runway</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <KPICard
-                  title="Marketing Spend"
-                  value={`$${metrics.totalMarketingSpend.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={null}
-                  icon={<Target className="w-6 h-6" />}
-                  color="red"
-                />
-
-                <KPICard
-                  title="Marketing Efficiency"
-                  value={`${metrics.marketingEfficiency.toFixed(0)}%`}
-                  growth={metrics.growth.marketingEfficiency}
-                  icon={<TrendingUp className="w-6 h-6" />}
-                  color="green"
-                  subtitle="Revenue / Marketing Spend"
-                />
-
-                <KPICard
-                  title="Cash Position"
-                  value={`$${metrics.currentCash.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={null}
-                  icon={<DollarSign className="w-6 h-6" />}
-                  color="indigo"
-                />
-
-                <KPICard
-                  title="Runway"
-                  value={`${metrics.runway.toFixed(0)}m`}
-                  growth={null}
-                  icon={<Calendar className="w-6 h-6" />}
-                  color="blue"
-                  subtitle="Until end of March 2028"
-                />
-              </div>
+            <h3 style={sectionTitle}>Marketing &amp; Runway</h3>
+            <div style={grid(240)}>
+              <KPICard title="Marketing Spend" value={money(metrics.totalMarketingSpend)} growth={null} icon="fa-dollar-sign" />
+              <KPICard title="Marketing Efficiency" value={`${metrics.marketingEfficiency.toFixed(0)}%`} growth={metrics.growth.marketingEfficiency} icon="fa-chart-line" subtitle="Revenue / Marketing Spend" />
+              <KPICard title="Cash Position" value={money(metrics.currentCash)} growth={null} icon="fa-dollar-sign" />
+              <KPICard title="Runway" value={`${metrics.runway.toFixed(0)}m`} growth={null} icon="fa-calendar" subtitle="Until end of March 2028" />
             </div>
 
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-slate-900 mb-4">CAC & LTV</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <KPICard
-                  title="Customer Acquisition Cost"
-                  value={`$${metrics.avgCAC.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.cac}
-                  icon={<Users className="w-6 h-6" />}
-                  color="red"
-                  invertGrowth={true}
-                />
-
-                <KPICard
-                  title="Lifetime Value"
-                  value={`$${metrics.avgLTV.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                  growth={metrics.growth.ltv}
-                  icon={<TrendingUp className="w-6 h-6" />}
-                  color="green"
-                />
-
-                <KPICard
-                  title="LTV / CAC Ratio"
-                  value={metrics.ltvCacRatio.toFixed(2)}
-                  growth={metrics.growth.ltvCacRatio}
-                  icon={<Target className="w-6 h-6" />}
-                  color="purple"
-                  subtitle="Target: >3.0"
-                />
-
-                <KPICard
-                  title="Payback Period"
-                  value={`${metrics.paybackPeriod.toFixed(2)} bookings`}
-                  growth={metrics.growth.paybackPeriod}
-                  icon={<Calendar className="w-6 h-6" />}
-                  color="indigo"
-                  invertGrowth={true}
-                  subtitle="Bookings to recover CAC"
-                />
-              </div>
+            <h3 style={sectionTitle}>CAC &amp; LTV</h3>
+            <div style={grid(240)}>
+              <KPICard title="Customer Acquisition Cost" value={money(metrics.avgCAC)} growth={metrics.growth.cac} icon="fa-dollar-sign" invertGrowth />
+              <KPICard title="Lifetime Value" value={money(metrics.avgLTV)} growth={metrics.growth.ltv} icon="fa-dollar-sign" />
+              <KPICard title="LTV / CAC Ratio" value={metrics.ltvCacRatio.toFixed(2)} growth={metrics.growth.ltvCacRatio} icon="fa-bullseye" subtitle="Target: >3.0" />
+              <KPICard title="Payback Period" value={`${metrics.paybackPeriod.toFixed(2)} bookings`} growth={metrics.growth.paybackPeriod} icon="fa-calendar" invertGrowth subtitle="Bookings to recover CAC" />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">GMV Trend</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.gmv}
-                      onChange={() => toggleTrendline('gmv')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+            <h3 style={sectionTitle}>Analytics</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(500px, 1fr))', gap: 16 }}>
+              <ChartCard title="GMV Trend" trendKey="gmv">
+                <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={gmvTrendData}>
-                    <defs>
-                      <linearGradient id="colorGMV" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                    />
-                    <Area type="monotone" dataKey="gmvTotal" stroke="#3b82f6" fillOpacity={1} fill="url(#colorGMV)" strokeWidth={2} name="GMV" />
-                    {showTrendlines.gmv && (
-                      <Line type="monotone" dataKey="gmvTotal_trend" stroke="#1e40af" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
-                    )}
+                    <defs><linearGradient id="cGMV" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor={GOLD} stopOpacity={0.3} /><stop offset="95%" stopColor={GOLD} stopOpacity={0} /></linearGradient></defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Area type="monotone" dataKey="gmvTotal" stroke={GOLD} fill="url(#cGMV)" strokeWidth={2} name="GMV" />
+                    {showTrendlines.gmv && <Line type="monotone" dataKey="gmvTotal_trend" stroke="#6f5f33" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </ComposedChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Revenue Trend</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.revenue}
-                      onChange={() => toggleTrendline('revenue')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Revenue Trend" trendKey="revenue">
+                <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={revenueTrendData}>
-                    <defs>
-                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                    />
-                    <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenue)" strokeWidth={2} name="Revenue" />
-                    {showTrendlines.revenue && (
-                      <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
-                    )}
+                    <defs><linearGradient id="cRev" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#10b981" stopOpacity={0.3} /><stop offset="95%" stopColor="#10b981" stopOpacity={0} /></linearGradient></defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Area type="monotone" dataKey="revenueTotal" stroke="#10b981" fill="url(#cRev)" strokeWidth={2} name="Revenue" />
+                    {showTrendlines.revenue && <Line type="monotone" dataKey="revenueTotal_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </ComposedChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">GMV: EU vs Outside EU</h3>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="GMV: EU vs Outside EU">
+                <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorEU" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorOutsideEU" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `${value.toFixed(0)}%`}
-                    />
-                    <Legend />
-                    <Area type="monotone" dataKey="gmvEU" stroke="#3b82f6" fillOpacity={1} fill="url(#colorEU)" strokeWidth={2} name="GMV EU %" />
-                    <Area type="monotone" dataKey="gmvOutsideEU" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorOutsideEU)" strokeWidth={2} name="GMV Outside EU %" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => `${Number(v).toFixed(0)}%`} /><Legend />
+                    <Area type="monotone" dataKey="gmvEU" stroke={GOLD} fill={GOLD} fillOpacity={0.15} strokeWidth={2} name="GMV EU %" />
+                    <Area type="monotone" dataKey="gmvOutsideEU" stroke="#8b5cf6" fill="#8b5cf6" fillOpacity={0.15} strokeWidth={2} name="GMV Outside EU %" />
                   </AreaChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Properties Trend</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.properties}
-                      onChange={() => toggleTrendline('properties')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Properties Trend" trendKey="properties">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={propertiesTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                    />
-                    <Line type="monotone" dataKey="properties" stroke="#f97316" strokeWidth={3} dot={{ fill: '#f97316', r: 5 }} name="Properties" />
-                    {showTrendlines.properties && (
-                      <Line type="monotone" dataKey="properties_trend" stroke="#c2410c" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
-                    )}
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} /><Tooltip labelFormatter={fmtDate} contentStyle={tip} />
+                    <Line type="monotone" dataKey="properties" stroke="#f97316" strokeWidth={3} dot={{ fill: '#f97316', r: 4 }} name="Properties" />
+                    {showTrendlines.properties && <Line type="monotone" dataKey="properties_trend" stroke="#c2410c" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Bookings & Users</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.bookings}
-                      onChange={() => toggleTrendline('bookings')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Bookings & Users" trendKey="bookings">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={bookingsTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis yAxisId="left" stroke="#64748b" />
-                    <YAxis yAxisId="right" orientation="right" stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                    />
-                    <Legend />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} />
+                    <YAxis yAxisId="left" stroke="#9a9a9a" width={52} /><YAxis yAxisId="right" orientation="right" stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} /><Legend />
                     <Line yAxisId="left" type="monotone" dataKey="bookings" stroke="#8b5cf6" strokeWidth={2} dot={{ fill: '#8b5cf6' }} name="Bookings" />
-                    {showTrendlines.bookings && (
-                      <Line yAxisId="left" type="monotone" dataKey="bookings_trend" stroke="#6b21a8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Bookings Trend" />
-                    )}
-                    <Line yAxisId="right" type="monotone" dataKey="users" stroke="#f59e0b" strokeWidth={2} dot={{ fill: '#f59e0b' }} name="Users" />
+                    {showTrendlines.bookings && <Line yAxisId="left" type="monotone" dataKey="bookings_trend" stroke="#6b21a8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Bookings Trend" />}
+                    <Line yAxisId="right" type="monotone" dataKey="users" stroke={GOLD} strokeWidth={2} dot={{ fill: GOLD }} name="Users" />
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">Trailing 12-Month Revenue</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.ttm}
-                      onChange={() => toggleTrendline('ttm')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Trailing 12-Month Revenue" trendKey="ttm">
+                <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={ttmTrendData}>
-                    <defs>
-                      <linearGradient id="colorTTM" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                    />
-                    <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fillOpacity={1} fill="url(#colorTTM)" strokeWidth={2} name="TTM Revenue" />
-                    {showTrendlines.ttm && (
-                      <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
-                    )}
+                    <defs><linearGradient id="cTTM" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} /><stop offset="95%" stopColor="#6366f1" stopOpacity={0} /></linearGradient></defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Area type="monotone" dataKey="ttmRevenue" stroke="#6366f1" fill="url(#cTTM)" strokeWidth={2} name="TTM Revenue" />
+                    {showTrendlines.ttm && <Line type="monotone" dataKey="ttmRevenue_trend" stroke="#4338ca" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </ComposedChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-4">Marketing Spend vs Revenue</h3>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="Marketing Spend vs Revenue">
+                <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                    />
-                    <Legend />
-                    <Bar dataKey="marketingSpend" fill="#ef4444" radius={[8, 8, 0, 0]} name="Marketing Spend" />
-                    <Bar dataKey="revenueTotal" fill="#10b981" radius={[8, 8, 0, 0]} name="Revenue" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} /><Legend />
+                    <Bar dataKey="marketingSpend" fill="#ef4444" radius={[6, 6, 0, 0]} name="Marketing Spend" />
+                    <Bar dataKey="revenueTotal" fill="#10b981" radius={[6, 6, 0, 0]} name="Revenue" />
                   </BarChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">NPS Score Trend</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.nps}
-                      onChange={() => toggleTrendline('nps')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="NPS Score Trend" trendKey="nps">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={npsTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" domain={[0, 100]} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                    />
-                    <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={3} dot={{ fill: '#eab308', r: 5 }} name="NPS Score" />
-                    {showTrendlines.nps && (
-                      <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
-                    )}
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} domain={[0, 100]} /><Tooltip labelFormatter={fmtDate} contentStyle={tip} />
+                    <Line type="monotone" dataKey="nps" stroke="#eab308" strokeWidth={3} dot={{ fill: '#eab308', r: 4 }} name="NPS Score" />
+                    {showTrendlines.nps && <Line type="monotone" dataKey="nps_trend" stroke="#a16207" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">CAC Trend</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.cac}
-                      onChange={() => toggleTrendline('cac')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="CAC Trend" trendKey="cac">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={cacTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                    />
-                    <Line type="monotone" dataKey="cac" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 5 }} name="CAC" />
-                    {showTrendlines.cac && (
-                      <Line type="monotone" dataKey="cac_trend" stroke="#991b1b" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
-                    )}
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Line type="monotone" dataKey="cac" stroke="#ef4444" strokeWidth={3} dot={{ fill: '#ef4444', r: 4 }} name="CAC" />
+                    {showTrendlines.cac && <Line type="monotone" dataKey="cac_trend" stroke="#991b1b" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-slate-900">LTV Trend</h3>
-                  <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={showTrendlines.ltv}
-                      onChange={() => toggleTrendline('ltv')}
-                      className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    Trendline
-                  </label>
-                </div>
-                <ResponsiveContainer width="100%" height={300}>
+              <ChartCard title="LTV Trend" trendKey="ltv">
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={ltvTrendData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="date" stroke="#64748b" />
-                    <YAxis stroke="#64748b" />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px' }}
-                      formatter={(value) => `$${value.toLocaleString('en-US', { maximumFractionDigits: 0 })}`}
-                    />
-                    <Line type="monotone" dataKey="ltv" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 5 }} name="LTV" />
-                    {showTrendlines.ltv && (
-                      <Line type="monotone" dataKey="ltv_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />
-                    )}
+                    <CartesianGrid strokeDasharray="3 3" stroke="#eeeeea" /><XAxis dataKey="date" stroke="#9a9a9a" tickFormatter={fmtDate} minTickGap={12} /><YAxis stroke="#9a9a9a" width={52} tickFormatter={fmtAxis} />
+                    <Tooltip labelFormatter={fmtDate} contentStyle={tip} formatter={(v) => money(v)} />
+                    <Line type="monotone" dataKey="ltv" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 4 }} name="LTV" />
+                    {showTrendlines.ltv && <Line type="monotone" dataKey="ltv_trend" stroke="#047857" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Trend" />}
                   </LineChart>
                 </ResponsiveContainer>
-              </div>
+              </ChartCard>
             </div>
           </>
         )}
@@ -1261,44 +700,23 @@ export default function InvestorDashboard() {
   );
 }
 
-function KPICard({ title, value, growth, icon, color, invertGrowth = false, subtitle, isPercentage = false }) {
-  const colorClasses = {
-    blue: 'bg-blue-50 text-blue-600',
-    green: 'bg-green-50 text-green-600',
-    purple: 'bg-purple-50 text-purple-600',
-    indigo: 'bg-indigo-50 text-indigo-600',
-    red: 'bg-red-50 text-red-600',
-    orange: 'bg-orange-50 text-orange-600',
-    yellow: 'bg-yellow-50 text-yellow-600'
-  };
-
-  const isPositive = invertGrowth ? growth < 0 : growth > 0;
-  const showGrowth = growth !== null && growth !== undefined;
-
+function KPICard({ title, value, growth, icon, isPercentage = false, invertGrowth = false, subtitle }) {
+  const showGrowth = growth !== null && growth !== undefined && !isNaN(growth);
+  const positive = invertGrowth ? growth < 0 : growth >= 0;
   return (
-    <div className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between mb-4">
-        <div className={`${colorClasses[color]} p-3 rounded-lg`}>
-          {icon}
-        </div>
+    <div style={{ background: 'white', border: '1px solid #e5e5e0', borderRadius: 8, padding: 22, boxShadow: '0 1px 2px rgba(0,0,0,0.02)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8, minHeight: 24 }}>
+        <i className={`fas ${icon}`} style={{ fontSize: 16, color: '#A28D50', opacity: 0.8 }}></i>
         {showGrowth && (
-          <div className={`flex items-center gap-1 text-sm font-semibold ${
-            isPositive ? 'text-green-600' : 'text-red-600'
-          }`}>
-            {isPositive ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-            {isPercentage ? `${Math.abs(growth).toFixed(1)}pp` : `${Math.abs(growth).toFixed(1)}%`}
+          <div style={{ fontSize: 12, fontWeight: 600, padding: '4px 8px', borderRadius: 6,
+            color: positive ? '#059669' : '#dc2626', background: positive ? '#f0fdf4' : '#fef2f2', border: `1px solid ${positive ? '#dcfce7' : '#fee2e2'}` }}>
+            {growth >= 0 ? '↑' : '↓'} {Math.abs(growth).toFixed(1)}{isPercentage ? 'pp' : '%'}
           </div>
         )}
       </div>
-      <h3 className="text-slate-600 text-sm font-medium mb-1">{title}</h3>
-      <p className="text-3xl font-bold text-slate-900">{value}</p>
-      {showGrowth && (
-        <p className="text-xs text-slate-500 mt-2">vs same period last year</p>
-      )}
-      {subtitle && !showGrowth && (
-        <p className="text-xs text-slate-500 mt-2">{subtitle}</p>
-      )}
+      <p style={{ fontSize: 12, color: '#6b6b6b', textTransform: 'uppercase', letterSpacing: 0.4, fontWeight: 500, margin: 0 }}>{title}</p>
+      <p style={{ fontSize: 27, fontWeight: 700, color: '#1a1a1a', margin: '4px 0 0', fontVariantNumeric: 'tabular-nums' }}>{value}</p>
+      {(showGrowth || subtitle) && <p style={{ fontSize: 12, color: '#9a9a9a', margin: '4px 0 0' }}>{showGrowth ? 'vs same period last year' : subtitle}</p>}
     </div>
   );
 }
-
