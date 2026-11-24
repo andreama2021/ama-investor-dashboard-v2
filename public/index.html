@@ -303,6 +303,7 @@ a.mchip:hover{border-color:var(--gold);color:var(--gold-dark)}
 <div class="overlay" id="cv-overlay" role="dialog" aria-modal="true" aria-labelledby="cv-title">
   <div class="modal" style="width:min(820px,100%)">
     <div class="mhead"><div><h2 id="cv-title">Analyse a conversation</h2><p class="muted" style="font-size:13px;margin-top:2px">Paste the full conversation from the admin, from the client name at the top to the last message. Pasting a booking that is already loaded replaces it.</p></div><button class="x" id="cv-close" type="button" aria-label="Close">×</button></div>
+    <div class="row" style="justify-content:space-between"><span class="muted" style="font-size:13px">Paste below, or load the export from the platform:</span><span><label class="btn" for="cv-csv">Upload CSV file…</label><input type="file" id="cv-csv" accept=".csv,.txt,text/csv,text/plain" hidden></span></div>
     <textarea id="cv-text" style="width:100%;min-height:220px;resize:vertical" placeholder="Paste the conversation here"></textarea>
     <div class="drop">
       <div class="muted" style="font-size:13px">Booking detail screenshot (optional): paste it with Ctrl/⌘+V or choose a file. It adds the stay dates, guests and booking source.</div>
@@ -931,27 +932,128 @@ async function saveConv(c){ await api('/api/conversations', {upsert:c}); const i
 async function runAi(c, images){
   const res = await api('/api/analyze', {prompt:buildPrompt(c, images.length > 0), images});
   const ai = cleanAi(res.result); if(!ai) throw {code:'invalid_json'};
-  if(!ai.booking && c.ai && c.ai.booking) ai.booking = c.ai.booking;
+  if(!images.length || !ai.booking) ai.booking = (c.ai && c.ai.booking) || c.booking || null;   // booking facts only ever come from a screenshot
   c.ai = ai; c.analyzedAt = new Date().toISOString(); return c;
+}
+/* ---------- reading an uploaded CSV export ---------- */
+function csvRows(text){
+  text = text.replace(/^﻿/, '');
+  const head = text.slice(0, text.indexOf('\n') < 0 ? text.length : text.indexOf('\n'));
+  const delim = [',', ';', '\t'].sort((a, b) => head.split(b).length - head.split(a).length)[0];
+  const out = []; let row = [], cell = '', q = false;
+  for(let i = 0; i < text.length; i++){ const ch = text[i];
+    if(q){ if(ch === '"'){ if(text[i+1] === '"'){ cell += '"'; i++; } else q = false; } else cell += ch; }
+    else if(ch === '"') q = true;
+    else if(ch === delim){ row.push(cell); cell = ''; }
+    else if(ch === '\n' || ch === '\r'){ if(ch === '\r' && text[i+1] === '\n') i++; row.push(cell); cell = ''; if(row.some(x => x.trim())) out.push(row); row = []; }
+    else cell += ch; }
+  row.push(cell); if(row.some(x => x.trim())) out.push(row);
+  return out;
+}
+const CSV_COLS = {
+  at:['created_at','createdat','sent_at','sentat','date','datetime','date_time','timestamp','time','created','sent','message_date'],
+  sender:['sender','sender_name','from','from_name','author','author_name','sent_by','user','user_name','name'],
+  role:['role','sender_type','sender_role','author_type','from_type','type','direction','user_type'],
+  text:['message','body','text','content','message_body','message_text','msg'],
+  booking:['booking_id','bookingid','reservation_id','reservationid','booking','reservation','booking_number','reservation_number','res_id'],
+  client:['client_name','client','guest_name','guest','customer_name','customer'],
+  property:['property_name','property','villa','villa_name','listing'],
+  propertyRef:['property_ref','property_id','ref'],
+  concierge:['concierge','concierge_name','agent','assigned_to']
+};
+function csvDate(v){
+  v = String(v || '').trim(); if(!v) return '';
+  let m = v.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{1,2}):(\d{2})/);
+  if(m && !/(Z|[+-]\d{2}:?\d{2})$/.test(v)) return `${m[1]}-${m[2]}-${m[3]}T${p2(+m[4])}:${m[5]}`;
+  if(m){ const d = new Date(v); if(!isNaN(d)) return d.toLocaleString('sv-SE', {timeZone:'Europe/Paris'}).replace(' ', 'T').slice(0, 16); }
+  m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})[ ,T]+(\d{1,2}):(\d{2})(?::\d{2})? ?([AaPp][Mm])?/);          // month/day/year, as in the platform's other exports
+  if(m){ let h = +m[4]; if(m[6]){ h = h % 12; if(/p/i.test(m[6])) h += 12; } const mo = +m[1] > 12 ? +m[2] : +m[1], da = +m[1] > 12 ? +m[1] : +m[2]; return `${m[3]}-${p2(mo)}-${p2(da)}T${p2(h)}:${m[5]}`; }
+  m = v.replace(' | ', ' ').match(/^([A-Z][a-z]{2})[a-z]* (\d{1,2}),? (\d{4}),? (\d{1,2}):(\d{2}) ?([AaPp][Mm])?/);
+  if(m && CV_MON[m[1]]){ let h = +m[4]; if(m[6]){ h = h % 12; if(/p/i.test(m[6])) h += 12; } return `${m[3]}-${p2(CV_MON[m[1]])}-${p2(+m[2])}T${p2(h)}:${m[5]}`; }
+  const d = new Date(v); return isNaN(d) ? '' : d.toLocaleString('sv-SE', {timeZone:'Europe/Paris'}).replace(' ', 'T').slice(0, 16);
+}
+// Returns {convs:[parsed conversation, ...]} or {error:'what is wrong'}
+function parseCsvConversations(text){
+  const R = csvRows(text); if(R.length < 2) return {error:'The file has no rows under its header line.'};
+  const heads = R[0].map(h => h.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')), col = {};
+  for(const [k, names] of Object.entries(CSV_COLS)){ const hit = names.map(n => heads.indexOf(n)).find(x => x >= 0); if(hit != null && hit >= 0) col[k] = hit; }
+  const need = [['at','a date and time'], ['text','the message text'], ['sender','who sent each message']].filter(([k]) => col[k] == null && !(k === 'sender' && col.role != null)).map(x => x[1]);
+  if(need.length) return {error:'This file is missing a column for ' + need.join(' and ') + '. Its columns are: ' + R[0].map(x => x.trim()).filter(Boolean).join(', ') + '. Send that list to whoever maintains the dashboard so the import can be matched to it.'};
+  const known = new Set(rows.map(r => r.concierge.toLowerCase()).filter(Boolean)), groups = new Map(), get = (r, k) => col[k] == null ? '' : String(r[col[k]] || '').trim();
+  for(const r of R.slice(1)){ const key = get(r, 'booking') || '_single'; if(!groups.has(key)) groups.set(key, []); groups.get(key).push(r); }
+  const out = [], skipped = [];
+  for(const [key, list] of groups){
+    const bookingId = key === '_single' ? '' : key.replace(/^#/, ''), nps = bookingId && rows.find(x => x.bookingId === bookingId);
+    let client = list.map(r => get(r, 'client')).find(Boolean) || (nps ? nps.client : '');
+    const first = client.split(' ')[0].toLowerCase(), items = [];
+    for(const r of list){ const at = csvDate(get(r, 'at')), body = get(r, 'text'); if(!at || !body) continue;
+      const sender = get(r, 'sender'), role = get(r, 'role').toLowerCase(), s = sender.toLowerCase();
+      let kind = /system|auto|bot|notification/.test(role) ? 'system' : /client|guest|customer|traveller|traveler|inbound|incoming/.test(role) ? 'client' : /concierge|agent|staff|admin|team|ama|outbound|outgoing/.test(role) ? 'concierge' : '';
+      if(!kind && s) kind = client && (s === client.toLowerCase() || s === first) ? 'client' : known.has(s.split(' ')[0]) || known.has(s) ? 'concierge' : '';
+      items.push({at, body, sender, kind}); }
+    if(!client){ const unk = items.find(x => x.kind === 'client' || (!x.kind && x.sender)); if(unk) client = unk.sender; }
+    for(const x of items) if(!x.kind) x.kind = x.sender && client && x.sender.toLowerCase() === client.toLowerCase() ? 'client' : x.sender ? 'concierge' : 'system';
+    items.sort((a, b) => a.at.localeCompare(b.at));
+    const messages = [], events = [];
+    for(const x of items){ if(x.kind === 'system') events.push({at:x.at, text:x.body.slice(0, 300)}); else messages.push({n:messages.length + 1, at:x.at, role:x.kind, sender:x.sender || (x.kind === 'client' ? client : 'Concierge'), text:x.body, words:x.body.split(/\s+/).length}); }
+    const label = (client || 'Unknown client') + (bookingId ? ', booking ' + bookingId : '');
+    if(!messages.some(m => m.role === 'client') || !messages.some(m => m.role === 'concierge')){ skipped.push(label); continue; }
+    out.push({client, concierge:list.map(r => get(r, 'concierge')).find(Boolean) || (messages.find(m => m.role === 'concierge') || {}).sender || '', property:list.map(r => get(r, 'property')).find(Boolean) || (nps ? nps.property : ''), propertyRef:list.map(r => get(r, 'propertyRef')).find(Boolean) || '', bookingId, messages, events});
+  }
+  if(!out.length) return {error:'No conversation in this file has both client and concierge messages' + (skipped.length ? ' (' + skipped.slice(0, 3).join('; ') + ')' : '') + '. The sender or role column could not be matched to clients and concierges.'};
+  return {convs:out, skipped};
+}
+
+/* ---------- analysing ---------- */
+const CV_MAX_BATCH = 25;
+let cvQueue = null, cvStop = false;           // conversations read from an uploaded file, waiting for "Analyse and save"
+async function analyseOne(p, imgs){
+  const c = computeTimings({id:p.bookingId ? 'c' + p.bookingId : newId(), v:1, client:p.client, bookingId:p.bookingId, property:p.property, propertyRef:p.propertyRef || '', messages:p.messages, events:p.events, partner:'', ai:null});
+  const old = convs.find(x => x.id === c.id); if(old){ c.partner = old.partner || ''; c.booking = old.booking; if(old.review) c.review = old.review; }
+  let aiNote = '';
+  try{ await runAi(c, imgs); }
+  catch(e){ if(e.code === 'signed_out') throw e; aiNote = e.code === 'not_configured' ? 'The AI assessment is not set up (ANTHROPIC_API_KEY is missing in Vercel).' : 'The AI assessment did not run (' + e.code + ').'; }
+  linkConv(c); await saveConv(c);
+  return {c, aiNote};
 }
 async function analysePasted(){
   if(cvBusy) return; const msg = $('cv-msg'); msg.className = 'msg';
-  const p = parseConversation($('cv-text').value);
-  if(!p.messages.length){ msg.className = 'msg err'; msg.textContent = 'No dated messages were found. Paste the whole conversation, including the line "… is your dedicated concierge - Villa - Res. #…" and the date above each message.'; return; }
-  if(!p.messages.some(m => m.role === 'client')){ msg.className = 'msg err'; msg.textContent = 'Messages were found, but none from the client, so there is nothing to time or assess. Check that the client name on the first line matches the name shown on their messages.'; return; }
-  cvBusy = true; $('cv-run').disabled = true;
-  let c = computeTimings({id:p.bookingId ? 'c' + p.bookingId : newId(), v:1, client:p.client, bookingId:p.bookingId, property:p.property, messages:p.messages, events:p.events, partner:'', ai:null});
-  const old = convs.find(x => x.id === c.id); if(old){ c.partner = old.partner || ''; c.booking = old.booking; }
-  let aiNote = '';
-  try{
-    msg.textContent = `Found ${p.messages.length} messages. Reading the conversation, this can take up to a minute…`;
-    const imgs = []; for(const b of cvImages){ try{ imgs.push(await toJpeg(b)); }catch(e){} }
-    await runAi(c, imgs);
-  }catch(e){ aiNote = e.code === 'not_configured' ? 'The AI assessment is not set up (ANTHROPIC_API_KEY is missing in Vercel).' : e.code === 'signed_out' ? '' : 'The AI assessment did not run (' + e.code + ').'; if(e.code === 'signed_out'){ cvBusy = false; $('cv-run').disabled = false; return; } }
-  linkConv(c);
-  try{ await saveConv(c); }catch(e){ msg.className = 'msg err'; msg.textContent = 'Not saved (' + e.code + '). Press Analyse again.'; cvBusy = false; $('cv-run').disabled = false; return; }
-  cvBusy = false; $('cv-run').disabled = false; $('cv-overlay').classList.remove('open');
-  CV.open = c.id; CV.pmsg = ''; CV.rmsg = ''; CV.verdict = undefined; CV.minorOpen = false; CV.threadOpen = false; CV.note = aiNote ? aiNote + ' Timings are saved. Use "Run assessment again" to retry.' : ''; renderConv(); window.scrollTo(0, 0);
+  let list;
+  if(cvQueue && cvQueue.length) list = cvQueue;
+  else {
+    const p = parseConversation($('cv-text').value);
+    if(!p.messages.length){ msg.className = 'msg err'; msg.textContent = 'No dated messages were found. Paste the whole conversation, including the line "… is your dedicated concierge - Villa - Res. #…" and the date above each message, or upload the CSV export.'; return; }
+    if(!p.messages.some(m => m.role === 'client')){ msg.className = 'msg err'; msg.textContent = 'Messages were found, but none from the client, so there is nothing to time or assess. Check that the client name on the first line matches the name shown on their messages.'; return; }
+    list = [p];
+  }
+  cvBusy = true; cvStop = false; $('cv-run').disabled = true;
+  const imgs = []; if(list.length === 1) for(const b of cvImages){ try{ imgs.push(await toJpeg(b)); }catch(e){} }
+  let done = 0, last = null, notes = new Set(), failed = '';
+  for(const p of list){
+    if(cvStop) break;
+    msg.textContent = list.length === 1 ? `Found ${p.messages.length} messages. Reading the conversation, this can take up to a minute…` : `Analysing ${done + 1} of ${list.length}: ${p.client || 'conversation'}… Keep this window open. Cancel stops after the current one.`;
+    try{ const r = await analyseOne(p, imgs); last = r.c; if(r.aiNote) notes.add(r.aiNote); done++; }
+    catch(e){ if(e.code === 'signed_out'){ cvBusy = false; $('cv-run').disabled = false; return; } failed = e.code; break; }
+  }
+  cvBusy = false; $('cv-run').disabled = false;
+  if(failed && !done){ msg.className = 'msg err'; msg.textContent = 'Not saved (' + failed + '). Press Analyse again.'; return; }
+  const note = [...notes].join(' ');
+  $('cv-overlay').classList.remove('open'); cvQueue = null;
+  CV.pmsg = ''; CV.rmsg = ''; CV.verdict = undefined; CV.minorOpen = false; CV.threadOpen = false;
+  if(list.length === 1 && last){ CV.open = last.id; CV.note = note ? note + ' Timings are saved. Use "Run assessment again" to retry.' : ''; }
+  else { CV.open = null; CV.mode = 'library'; CV.note = ''; CV.batch = `${done} of ${list.length} conversations analysed and saved.` + (failed ? ' Stopped on an error (' + failed + '); upload the file again to finish the rest.' : cvStop && done < list.length ? ' Stopped at your request.' : '') + (note ? ' ' + note : ''); }
+  renderConv(); window.scrollTo(0, 0);
+}
+async function cvReadFile(file){
+  const msg = $('cv-msg'); msg.className = 'msg'; cvQueue = null;
+  let text; try{ text = await file.text(); }catch(e){ msg.className = 'msg err'; msg.textContent = 'That file could not be read.'; return; }
+  if(/dedicated concierge - .+ - Res\. #\d+/.test(text.slice(0, 4000)) && !/\.csv$/i.test(file.name)){ $('cv-text').value = text; msg.textContent = 'File loaded into the box. Click Analyse and save.'; return; }
+  const r = parseCsvConversations(text);
+  if(r.error){ msg.className = 'msg err'; msg.textContent = r.error; return; }
+  const over = r.convs.length > CV_MAX_BATCH; cvQueue = r.convs.slice(0, CV_MAX_BATCH);
+  $('cv-text').value = ''; $('cv-text').placeholder = `${file.name} loaded. Click "Analyse and save", or paste a conversation here to use that instead.`;
+  $('cv-run').textContent = cvQueue.length === 1 ? 'Analyse and save' : `Analyse and save ${cvQueue.length}`;
+  msg.textContent = (cvQueue.length === 1 ? `Read 1 conversation: ${cvQueue[0].client || 'unknown client'}${cvQueue[0].bookingId ? ', booking ' + cvQueue[0].bookingId : ''}, ${cvQueue[0].messages.length} messages.` : `Read ${r.convs.length} conversations (${r.convs.reduce((a, c) => a + c.messages.length, 0)} messages).`) + (over ? ` Only the first ${CV_MAX_BATCH} will be analysed in one go; upload again for the rest.` : '') + (r.skipped.length ? ` Skipped ${r.skipped.length} with no two-way exchange.` : '') + (cvQueue.length > 1 ? ' Each takes up to a minute.' : '');
 }
 
 /* ---------- views ---------- */
@@ -992,7 +1094,7 @@ function renderLibrary(){
   const sc = {positive:0, neutral:0, mixed:0, negative:0}; let flagged = 0;
   for(const c of list) if(c.ai){ sc[c.ai.sentiment.overall]++; if(c.ai.flags.some(f => f.severity === 'major')) flagged++; }
   const reviewed = list.filter(c => c.review && c.review.verdict);
-  $('cv-main').innerHTML = `
+  $('cv-main').innerHTML = `${CV.batch ? `<div class="note">${esc(CV.batch)}</div>` : ''}
     <div class="row" style="justify-content:space-between"><div class="muted" style="font-size:12px">${CV.clock === 'work' ? 'Counting working hours only: Monday to Friday, 10:00 to 18:00, Paris time.' : 'Counting every hour on the clock, nights and weekends included.'}</div>${clockChips()}</div>
     <div class="grid kpis">${tile('Conversations', list.length, convs.length !== list.length ? 'of ' + convs.length + ' loaded' : 'loaded')}${tile('Median response', dur(median(all)), all.length + ' client messages answered')}${tile('Average response', dur(mean(all)), 'Pulled up by the slowest replies')}${tile('Client sentiment', `${sc.positive} <small>positive</small>`, `${sc.neutral + sc.mixed} neutral or mixed · ${sc.negative} negative`)}${tile('With a major flag', flagged, 'Could affect the stay, money or trust')}${tile('Waiting for a reply', list.filter(c => c.metrics.clientLast).length, 'Client wrote last, no answer yet')}${tile('Reviewed by you', reviewed.length + ' <small>of ' + list.length + '</small>', reviewed.length ? 'You agreed with the AI on ' + reviewed.filter(c => c.review.verdict === 'agree').length : 'Open one and give your verdict')}</div>
     <div class="card"><h2>Average response time by conversation</h2><div class="sub">Each bar is one conversation. The line is the average across the conversations shown.</div><div class="chartbox"><canvas id="cv-chart-lib"></canvas></div></div>
@@ -1172,10 +1274,13 @@ function cvGoto(num){
 /* ---------- events ---------- */
 function cvThumbs(){ $('cv-thumbs').innerHTML = ''; cvImages.forEach((b, i) => { const w = document.createElement('div'); w.className = 'thumb'; const im = document.createElement('img'); im.src = URL.createObjectURL(b); im.alt = 'Booking screenshot'; const x = document.createElement('button'); x.type = 'button'; x.textContent = '×'; x.setAttribute('aria-label', 'Remove screenshot'); x.onclick = () => { cvImages.splice(i, 1); cvThumbs(); }; w.append(im, x); $('cv-thumbs').append(w); }); }
 function cvAddImages(files){ const ok = [...files].filter(f => /^image\/(png|jpe?g|webp|gif)$/.test(f.type)); if(!ok.length) return false; cvImages = cvImages.concat(ok).slice(0, 2); cvThumbs(); return true; }
-function cvOpenModal(){ cvImages = []; cvThumbs(); $('cv-text').value = ''; $('cv-msg').textContent = ''; $('cv-msg').className = 'msg'; $('cv-overlay').classList.add('open'); setTimeout(() => $('cv-text').focus(), 0); }
+function cvOpenModal(){ cvImages = []; cvQueue = null; cvStop = false; $('cv-run').textContent = 'Analyse and save'; $('cv-text').placeholder = 'Paste the conversation here'; cvThumbs(); $('cv-text').value = ''; $('cv-msg').textContent = ''; $('cv-msg').className = 'msg'; $('cv-overlay').classList.add('open'); setTimeout(() => $('cv-text').focus(), 0); }
 $('cv-add').addEventListener('click', cvOpenModal);
-$('cv-close').addEventListener('click', () => $('cv-overlay').classList.remove('open'));
-$('cv-cancel').addEventListener('click', () => $('cv-overlay').classList.remove('open'));
+const cvCloseModal = () => { if(cvBusy){ cvStop = true; $('cv-msg').textContent = 'Stopping after the current conversation…'; return; } $('cv-overlay').classList.remove('open'); };
+$('cv-close').addEventListener('click', cvCloseModal);
+$('cv-cancel').addEventListener('click', cvCloseModal);
+$('cv-csv').addEventListener('change', e => { const f = e.target.files[0]; e.target.value = ''; if(f) cvReadFile(f); });
+$('cv-text').addEventListener('input', () => { if(cvQueue && $('cv-text').value.trim()){ cvQueue = null; $('cv-run').textContent = 'Analyse and save'; $('cv-msg').textContent = 'Using the pasted text instead of the file.'; } });
 $('cv-run').addEventListener('click', analysePasted);
 $('cv-file').addEventListener('change', e => { cvAddImages(e.target.files); e.target.value = ''; });
 document.addEventListener('paste', e => { if(!$('cv-overlay').classList.contains('open')) return; const f = [...(e.clipboardData && e.clipboardData.files || [])]; if(f.length && cvAddImages(f)) e.preventDefault(); });
@@ -1185,7 +1290,7 @@ $('cv-search').addEventListener('input', e => { CV.q = e.target.value; if(CV.mod
 $('cv-main').addEventListener('click', async e => {
   const t = e.target, c = CV.open && convs.find(x => x.id === CV.open), note = $('cv-detail-msg');
   const go = t.closest('[data-goto]'); if(go){ e.preventDefault(); return cvGoto(go.dataset.goto); }
-  if(t.closest('[data-open]')){ CV.open = t.closest('[data-open]').dataset.open; CV.note = ''; CV.pmsg = ''; CV.rmsg = ''; CV.verdict = undefined; CV.minorOpen = false; CV.threadOpen = false; renderConv(); window.scrollTo(0, 0); return; }
+  if(t.closest('[data-open]')){ CV.batch = ''; CV.open = t.closest('[data-open]').dataset.open; CV.note = ''; CV.pmsg = ''; CV.rmsg = ''; CV.verdict = undefined; CV.minorOpen = false; CV.threadOpen = false; renderConv(); window.scrollTo(0, 0); return; }
   if(t.closest('[data-cvadd]')) return cvOpenModal();
   if(t.closest('[data-clock]')){ CV.clock = t.closest('[data-clock]').dataset.clock; return renderConv(); }
   if(t.id === 'cv-back'){ CV.open = null; CV.note = ''; return renderConv(); }
