@@ -1,27 +1,8 @@
 {
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": null,
-  "functions": {
-    "api/extract.js": {
-      "maxDuration": 60
-    },
-    "api/analyze.js": {
-      "maxDuration": 120
-    }
-  },
-  "headers": [
+  "rewrites": [
     {
       "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Robots-Tag",
-          "value": "noindex, nofollow"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "DENY"
-        }
-      ]
+      "destination": "/index.html"
     }
   ]
 }
